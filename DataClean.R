@@ -3,12 +3,26 @@ library(shiny)
 library(DT)
 library(dplyr)
 library(stringr)
+library(future)
+library(dygraphs)
+library(xts)
+
+
+x <- c()
+if(weekdays(Sys.Date())=="Monday"){
+  x <- 3
+}else{
+  x <- 1
+}
+
 
 CODE <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/CODE.csv")
 #########DILLON HIGHTOWER ADD############
 
-q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
-r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
+#q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
+#r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
+s <- future({ read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/s.csv", stringsAsFactors=FALSE) }) %plan% multiprocess
+t <- future ({ read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/t.csv", stringsAsFactors=FALSE) }) %plan% multiprocess
 
 #########################################
 ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -19,8 +33,9 @@ GRRHBS$ActDate<-as.Date(GRRHBS$ActDate,format="%m/%d/%Y")
 COND<-arrange(COND,desc(ED_COND_OPEN_DT))
 GRRHBS<-arrange(GRRHBS,desc(ActDate))
 RHBS <- GRRHBS
-#########DILLON HIGHTOWER ADD############
-df <- rbind(q,r)
+#########ADD############
+df <- rbind(value(s),value(t))
+DF <- df
 contacts <- c("CM","A3P","AT")
 
 df <- df[df$CODE_2 %in% contacts,]
@@ -70,22 +85,11 @@ df <- df[df$list != 2,]
 df <- df[,-which(names(df)%in%c("Hour.Min","Diff_Minutes","sub","list"))]
 
 ########################################################################################################
-pf <- df[df$CODE_3 == "PF",]
+#pf <- df[df$CODE_3 == "PF",]
 
+pf <- df[df$CODE_2 %in% contacts,]
 
-
-pf <- pf[pf$CODE_2 %in% contacts,]
-
-emp <-c("24985","105986","103297","21747","47254","45885","131978","190830","119359",
-        "167905","CN2009","CN4450","CN2371","CN3679","CN3653","CN3857","CN3907","CN4199",
-        "76924","115866","175947","163618","158836","22094","121681","93150","45845",
-        "168041","148992","170717","167902","173045","95513","174646","179647","47252",
-        "176843","170715","93288","43738","202198","201274","162776","199709","164007",
-        "189722","166008","162723","173092","143377","172790","161094","181043","149549",
-        "201071","180225","194484","195197","180239","180229","161696","15857","101241",
-        "195504","202195","162827","162718","169500","185554","192285","185291","198018",
-        "25607","157831","193339","189377","193344","164774","180055","113172","185292",
-        "29962","99661","0","1") 
+emp <-c("0","1") 
 pf$EMPNUM <- as.character(pf$EMPNUM)
 pf <- pf[!pf$EMPNUM %in% emp,]
 pf <- pf[complete.cases(pf),]
@@ -99,8 +103,8 @@ COND$ED_COND_VER_DT <- as.Date(COND$ED_COND_VER_DT,format="%m/%d/%Y")
 COND <- rename(COND,ACT_DATE = ED_COND_VER_DT, EMPNUM = ED_COND_OPEN_EMP, TFILE = CM_FILENO)
 COND <- COND %>%
   arrange(desc(ACT_DATE))
-COND <- COND[!COND$EMPNUM %in% emp,]
-rm(emp)
+#COND <- COND[!COND$EMPNUM %in% emp,]
+
 COND <- mutate(COND,Rehab.Condition = "Yes")
 COND <- COND[,names(COND) != "EMPNUM"]
 pf <- left_join(pf,COND,by=c("TFILE"))
@@ -111,16 +115,17 @@ pf$ED_ALL_RHB_RECV_DT <- as.Date(pf$ED_ALL_RHB_RECV_DT,"%m/%d/%Y")
 
 pf <- pf[,names(pf) != "ACT_DATE.y"]
 
-ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off)
+ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off,SUB)
 pf <- left_join(pf,ARMASTER,by="EMPNUM") %>%
   rename(Collector = A.R, Manager = manager, Department = DEPT, Office = off,Date = ACT_DATE.x)
-
+pf <- pf[pf$Department %in% "PRO",]
+pf <- pf[pf$SUB %in% c("AR","VERF","HIR","AWG"),]
 
 pf$Office <- as.factor(pf$Office)
 pf <- pf %>%
   arrange(Date)
 pf$Month <- format(pf$Date,format = "%B %Y")
-pf$Office <- plyr::revalue(pf$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta"))
+pf$Office <- plyr::revalue(pf$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta","S"="Schuerger"))
 pf$Department <- as.factor(pf$Department)
 
 dp <- c("CMG","CLR")
@@ -181,16 +186,7 @@ contacts <- c("CM","A3P","AT")
 
 df <- df[df$CODE_2 %in% contacts,]
 
-emp <-c("24985","105986","103297","21747","47254","45885","131978","190830","119359",
-        "167905","CN2009","CN4450","CN2371","CN3679","CN3653","CN3857","CN3907","CN4199",
-        "76924","115866","175947","163618","158836","22094","121681","93150","45845",
-        "168041","148992","170717","167902","173045","95513","174646","179647","47252",
-        "176843","170715","93288","43738","202198","201274","162776","199709","164007",
-        "189722","166008","162723","173092","143377","172790","161094","181043","149549",
-        "201071","180225","194484","195197","180239","180229","161696","15857","101241",
-        "195504","202195","162827","162718","169500","185554","192285","185291","198018",
-        "25607","157831","193339","189377","193344","164774","180055","113172","185292",
-        "29962","99661","0","1") 
+emp <-c("0","1") 
 df$EMPNUM <- as.character(df$EMPNUM)
 df <- df[!df$EMPNUM %in% emp,]
 df <- df[complete.cases(df),]
@@ -227,16 +223,17 @@ df$CODE_1 <- as.factor(df$CODE_1)
 df$CODE_2 <- as.factor(df$CODE_2)
 df$CODE_3 <- as.factor(df$CODE_3)
 
-ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off)
+ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off,SUB)
 df <- left_join(df,ARMASTER,by="EMPNUM") %>%
   rename(Collector = A.R, Manager = manager, Department = DEPT, Office = off,Date = ACT_DATE)
 rm(ARMASTER)
 #df <- df[complete.cases(df),]
+df <- df[df$SUB %in% c("GAR","AR"),]
 df$Office <- as.factor(df$Office)
 df <- df %>%
   arrange(Date)
 df$Month <- format(df$Date,format = "%B %Y")
-df$Office <- plyr::revalue(df$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta"))
+df$Office <- plyr::revalue(df$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta","S"="Schuerger"))
 df$Department <- as.factor(df$Department)
 
 dp <- c("PRO","CMG","CLR")
@@ -287,7 +284,7 @@ RHBS <- rename(RHBS, Date = ActDate,ARNUM=desk)
 RHBS$Month = format(RHBS$Date, format="%B %Y")
 Names <- select(Names,A.R,manager,desk,DEPT,off)
 Names <- rename(Names,ARNUM=desk,Collector=A.R,Manager=manager,Office = off,Department = DEPT)
-Names$Office <- plyr::revalue(Names$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta"))
+Names$Office <- plyr::revalue(Names$Office,c("C"="Columbus","K" = "Knoxville", "W" = "Westlake", "B" = "Columbus 2", "A" = "Atlanta","S"="Schuerger"))
 RHBS <- left_join(RHBS,Names,by="ARNUM")
 RHBS <- select(RHBS,Date,Month,Collector,Manager,Office,Department)
 
@@ -329,10 +326,292 @@ MDay <- RHBS %>%
 MDay$Manager <- as.factor(MDay$Manager)
 
 CODE <- plyr::rename(CODE,c("MENU.OPTION.1"="Menu Option","Description.2"="Description (cont)", "Call.Code"="Call Code"))
-rm(calls)
+
 rm(contacts)
 rm(dp)
 rm(Names)
+
+
+######################################################################################
+
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
+
+emp <-c("0","1") 
+
+DF <- DF[!DF$EMPNUM %in% emp,]
+
+
+
+review <- c("RV","LR")
+
+DF$ACT_DATE <- as.Date(DF$ACT_DATE,"%m/%d/%Y")
+
+worked <- DF[!duplicated(DF[c("TFILE","ACT_DATE","EMPNUM")]),]
+
+worked <- worked %>%
+  group_by(EMPNUM,ACT_DATE) %>%
+  summarize(Accounts_Worked = n())
+
+calls <- DF[!DF$CODE_1 %in% review,]
+
+calls <- calls %>%
+  group_by(EMPNUM,ACT_DATE) %>%
+  summarize(Notated_Calls = n(),
+            Inbound_Calls = sum(CODE_1=="IC"),
+            Outbound_Calls = Notated_Calls - Inbound_Calls,
+            Messages_Left = sum(CODE_3=="MSG")+ sum(CODE_3=="LMF"),
+            POE_Attempts = sum(CODE_1=="1P")+sum(CODE_1=="2P"))
+
+activity <- left_join(worked,calls,by=c("EMPNUM","ACT_DATE"))
+
+activity[is.na(activity)] <- 0
+
+ARMASTER <- ARMASTER %>%
+  select(EMPNUM,A.R,manager,DEPT,off,SUB)
+
+activity <- left_join(activity, ARMASTER,by="EMPNUM")
+activity <- activity[activity$SUB %in% c("HIR","VERF","HIR","AWG","GAR","AR"),]
+
+activity <- plyr::rename(activity,c("ACT_DATE"="Date","A.R"="Collector",
+                                    "manager"="Manager","DEPT"="Department",
+                                    "off"="Office"))
+activity$Month <- format(activity$Date, "%B %Y")
+
+activity$Office <- as.factor(activity$Office)
+activity$Department <- as.factor(activity$Department)
+activity$Collector <- as.factor(activity$Collector)
+activity$Manager <- as.factor(activity$Manager)
+activity$Month <- as.factor(activity$Month)
+
+activity$Office <- plyr::revalue(activity$Office,c("A"="Atlanta","AGY"="ALL","B"="Columbus 2","K"="Knoxville",
+                                                   "W"="Westlake","C"="Columbus","S"="Schuerger"))
+
+activity <- activity[activity$Manager != "",]
+
+Tracker <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/Tracker.csv", stringsAsFactors=FALSE)
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
+COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
+Funded <- read.delim("//Knx3fs01/ED_BA_GROUP/Lowhorn/Monthly Transaction Detail Report/Transaction Detail Dashboard/Funded.txt", stringsAsFactors=FALSE)
+Funded <- select(Funded,Debtor)
+Funded <- Funded %>%
+  mutate(Funded = "Yes")
+Funded <- rename(Funded, TFILE=Debtor)
+Funded$TFILE <- as.character(Funded$TFILE)
+Funded <- Funded[!duplicated(Funded$TFILE),]
+
+COND <- select(COND, CM_FILENO,ED_PROOF_INCOME_DT,ED_ALL_RHB_RECV_DT,ED_DOED_PAY_CNTR,ED_RHB_TYPE,ED_RHB_APP_RCV_DT)
+COND <- rename(COND,TFILE=CM_FILENO)
+
+Tracker$TFILE <- as.character(Tracker$TFILE)
+COND$TFILE <- as.character(COND$TFILE)
+Tracker <- left_join(Tracker,Funded,by="TFILE")
+Tracker <- left_join(Tracker,COND,by="TFILE")
+rm(Funded)
+rm(COND)
+
+Tracker$Funded[is.na(Tracker$Funded)] <- "No"
+Tracker[is.na(Tracker)] <- ""
+
+
+
+Tracker <- Tracker %>%
+  mutate(Fallout = ifelse(Funded=="Yes","Funded",
+                          ifelse(ED_DOED_PAY_CNTR=="","Fallout","In Pipeline")),
+         IncomeDocs = ifelse(Funded=="Yes","Yes",ifelse(is.na(ED_PROOF_INCOME_DT)|ED_PROOF_INCOME_DT=="","No","Yes")),
+         RALBack = ifelse(Funded=="Yes","Yes",ifelse(is.na(ED_RHB_APP_RCV_DT)|ED_RHB_APP_RCV_DT=="","No","Yes")),
+         ReadytoFund = ifelse(is.na(ED_ALL_RHB_RECV_DT)|ED_ALL_RHB_RECV_DT=="","No","Yes")
+         
+  )
+
+Tracker <- Tracker[,!names(Tracker) %in% c("ED_PROOF_INCOME_DT","ED_ALL_RHB_RECV_DT")]
+Tracker$EMPNUM <- as.character(Tracker$EMPNUM)
+ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off)
+Tracker <- left_join(Tracker,ARMASTER,by="EMPNUM")
+rm(ARMASTER)
+
+Tracker <- rename(Tracker,Collector = A.R , Manager = manager, Department = DEPT, Office = off)
+Tracker$Office <- as.factor(Tracker$Office)
+Tracker$Office <- plyr::revalue(Tracker$Office, c("K"="Knoxville",'W'="Westlake","C"="Columbus","S"="Schuerger"))
+Tracker$Collector[is.na(Tracker$Collector)] <- "NLE Employee"
+Tracker$Manager[is.na(Tracker$Manager)] <- "NLE Manager"
+Tracker$Department[is.na(Tracker$Department)] <- "COL"
+Tracker$Office[is.na(Tracker$Office)] <- "Knoxville"
+
+Tracker$SetupMonth <- as.Date(Tracker$SetupMonth,"%m/%d/%Y")
+Tracker$SetupMonth <- format(Tracker$SetupMonth,"%B %Y")
+
+docs <- Tracker %>%
+  group_by(SetupMonth,Office, Department, Manager, Collector) %>%
+  summarize(Setups = n(),
+            Income_Docs = sum(IncomeDocs=="Yes"),
+            IC_Percent = Income_Docs/Setups,
+            RAL = sum(RALBack=="Yes"),
+            RAL_Percent = RAL/Setups,
+            Fallout = sum(Fallout=="Fallout"),
+            Funded = sum(Funded=="Yes"),
+            Funded_Percent = Funded/Setups)
+
+
+docs$SetupMonth <- factor(docs$SetupMonth,levels=c(
+  "January 2016","February 2016","March 2016","April 2016","May 2016",
+  "June 2016","July 2016","August 2016","September 2016","October 2016",
+  "November 2016", "December 2016"))
+docs$Department <- as.factor(docs$Department)
+docs$Manager <- as.factor(docs$Manager)
+docs$Collector <- as.factor(docs$Collector)
+
+docs$Department <- plyr::revalue(docs$Department,c("IM"="COL","PRO"="COL","CMG"="COL","CLR"="COL"))
+docs$Office <- plyr::revalue(docs$Office,c("AGY"="Knoxville","ALL"="Knoxville"))
+
+
+Tracker$SetupMonth <- factor(Tracker$SetupMonth,levels=c("January 2015","February 2015","March 2015","April 2015",
+                                                         "May 2015", "June 2015", "July 2015", "August 2015",
+                                                         "September 2015", "October 2015", "November 2015", "December 2015",
+                                                         "January 2016","February 2016","March 2016","April 2016","May 2016",
+                                                         "June 2016","July 2016","August 2016","September 2016","October 2016",
+                                                         "November 2016", "December 2016"))
+
+
+COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
+ALL <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/all.csv",header=TRUE)
+TYPE <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/type.csv",header=TRUE)
+ALLAWG <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/allawg.csv",header=TRUE)
+TYPEAWG <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/typeawg.csv",header=TRUE)
+TYPE <- TYPE[,-1]
+ALL <- ALL[,-1]
+TYPEAWG <- TYPEAWG[,-1]
+ALLAWG <- ALLAWG[,-1]
+
+
+COND <- COND[COND$CM_CAN_DATE == "",]
+COND <- COND[COND$ED_RHB_TYPE != "",]
+
+COND <- rename(COND, Bucket = ED_DOED_PAY_CNTR, Office = CM_CLIENT)
+COND$ED_RHB_TYPE <- as.factor(COND$ED_RHB_TYPE)
+COND$Office <- as.factor(COND$Office)
+COND$ED_RHB_TYPE <- plyr::revalue(COND$ED_RHB_TYPE,c("1"="15 %","2"="FIS","3"="15 %"))
+COND$Office <- plyr::revalue(COND$Office,c("7222"="Knoxville","8035"="Knoxville","A7222"="Atlanta","B7222"="Columbus 2",
+                                           "C7222"="Columbus","C8035"="Columbus","D7222"="Defiance","W7222"="Westlake","S7222"="Schuerger"))
+
+
+COND <- COND[!COND$Office %in% c("Atlanta","Defiance"),]
+COND$Office <- factor(COND$Office,levels=c("Knoxville","Columbus","Columbus 2","Westlake","Schuerger"))
+COND <- COND %>%
+  mutate(Department = ifelse(ED_ACCT_ACT_DATE =="","Collections","AWG"))
+COND$Department <- as.factor(COND$Department)
+CONDcol <- COND[COND$Department == "Collections",]
+CONDawg <- COND[COND$Department == "AWG",]
+
+
+type <- CONDcol %>%
+  group_by(Bucket,ED_RHB_TYPE,Office) %>%
+  summarize(Rehabs = n(),
+            Income_Docs = sum(ED_PROOF_INCOME_DT != ""),
+            Income_Doc_P = Income_Docs/Rehabs,
+            RAL = sum(ED_RHB_APP_RCV_DT != ""),
+            RAL_P = RAL/Rehabs)
+
+
+all <- CONDcol %>%
+  group_by(Bucket,Office) %>%
+  summarize(Rehabs = n(),
+            Income_Docs = sum(ED_PROOF_INCOME_DT != ""),
+            Income_Doc_P = Income_Docs/Rehabs,
+            RAL = sum(ED_RHB_APP_RCV_DT != ""),
+            RAL_P = RAL/Rehabs)
+CONDawg <- CONDawg[,!names(CONDawg) %in% "Office"]
+
+typeawg <- CONDawg %>%
+  group_by(Bucket,ED_RHB_TYPE) %>%
+  summarize(Rehabs = n(),
+            Income_Docs = sum(ED_PROOF_INCOME_DT != ""),
+            Income_Doc_P = Income_Docs/Rehabs,
+            RAL = sum(ED_RHB_APP_RCV_DT != ""),
+            RAL_P = RAL/Rehabs)
+allawg <- CONDawg %>%
+  group_by(Bucket) %>%
+  summarize(Rehabs = n(),
+            Income_Docs = sum(ED_PROOF_INCOME_DT != ""),
+            Income_Doc_P = Income_Docs/Rehabs,
+            RAL = sum(ED_RHB_APP_RCV_DT != ""),
+            RAL_P = RAL/Rehabs)
+
+type$Office <-as.factor(type$Office)
+type <- left_join(type,TYPE,by=c("Bucket","Office","ED_RHB_TYPE"))
+type <- type %>%
+  mutate(Income_Doc_Change = Income_Doc_P.y - Income_Doc_P.x,
+         RAL_DOC_Change = RAL_P.y - RAL_P.x)
+type <- type[,!names(type) %in% c("Rehabs.y","Income_Docs.y","Income_Doc_P.y","RAL.y","RAL_P.y")]
+type <- rename(type, Rehabs = Rehabs.x,Income_Docs = Income_Docs.x,Income_Doc_P=Income_Doc_P.x,RAL = RAL.x,RAL_P=RAL_P.x)
+type$Income_Doc_Change <- round(as.numeric(type$Income_Doc_Change),2)
+type$RAL_DOC_Change <- round(as.numeric(type$RAL_DOC_Change),2)
+
+
+all$Office <-as.factor(all$Office)
+all <- left_join(all,ALL,by=c("Bucket","Office"))
+all <- all %>%
+  mutate(Income_Doc_Change = Income_Doc_P.y - Income_Doc_P.x,
+         RAL_DOC_Change = RAL_P.y - RAL_P.x)
+all <- all[,!names(all) %in% c("Rehabs.y","Income_Docs.y","Income_Doc_P.y","RAL.y","RAL_P.y")]
+all <- rename(all, Rehabs = Rehabs.x,Income_Docs = Income_Docs.x,Income_Doc_P=Income_Doc_P.x,RAL = RAL.x,RAL_P=RAL_P.x)
+all$Income_Doc_Change <- round(as.numeric(all$Income_Doc_Change),2)
+all$RAL_DOC_Change <- round(as.numeric(all$RAL_DOC_Change),2)
+
+
+TYPEAWG <- TYPEAWG[,!names(TYPEAWG) %in% c("Rehabs.x")]
+typeawg <- left_join(typeawg,TYPEAWG,by=c("Bucket","ED_RHB_TYPE"))
+typeawg <- typeawg[,!names(typeawg)%in%c("RAL_DOC_Change","Income_Doc_Change")]
+typeawg <- typeawg %>%
+  mutate(Income_Doc_Change = Income_Doc_P.y - Income_Doc_P.x,
+         RAL_DOC_Change = RAL_P.y - RAL_P.x)
+
+typeawg$Income_Doc_Change <- round(as.numeric(typeawg$Income_Doc_Change),2)
+typeawg$RAL_DOC_Change <- round(as.numeric(typeawg$RAL_DOC_Change),2)
+typeawg <- typeawg[,!names(typeawg) %in% c("Rehabs.y","Income_Docs.y","Income_Doc_P.y","RAL.y","RAL_P.y")]
+typeawg <- rename(typeawg,RAL=RAL.x,RAL_P=RAL_P.x,Income_Docs=Income_Docs.x,Income_Doc_P=Income_Doc_P.x)
+
+
+allawg <- left_join(allawg,ALLAWG,by=c("Bucket"))
+allawg <- allawg %>%
+  mutate(Income_Doc_Change = Income_Doc_P.y - Income_Doc_P.x,
+         RAL_DOC_Change = RAL_P.y - RAL_P.x)
+
+allawg$Income_Doc_Change <- round(as.numeric(allawg$Income_Doc_Change),2)
+allawg$RAL_DOC_Change <- round(as.numeric(allawg$RAL_DOC_Change),2)
+allawg <- allawg[,!names(allawg) %in% c("Rehabs.y","Income_Docs.y","Income_Doc_P.y","RAL.y","RAL_P.y")]
+allawg <- rename(allawg,Rehabs=Rehabs.x,RAL=RAL.x,RAL_P=RAL_P.x,Income_Docs=Income_Docs.x,Income_Doc_P=Income_Doc_P.x)
+
+
+rm(ALL); rm(TYPE);rm(TYPEAWG);rm(ALLAWG)
+rm(COND)
+
+all$Office <- as.factor(all$Office)
+type$Office <- as.factor(type$Office)
+
+if(x==1){
+}else{
+  write.csv(all,"//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/all.csv")
+  write.csv(type,"//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/type.csv")
+  write.csv(allawg,"//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/allawg.csv")
+  write.csv(typeawg,"//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/typeawg.csv")
+  
+}
+
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
+
+ARMASTER$A.R <- as.factor(ARMASTER$A.R)
+
+hein <- activity %>%
+  group_by(Department) %>%
+  summarize(Avg_Calls = round(mean(Notated_Calls),2),
+            Avg_Accounts_Worked = round(mean(Accounts_Worked),2),
+            Avg_Messages = round(mean(Messages_Left),2),
+            Avg_POE_Attempts = round(mean(POE_Attempts),2)) 
+
+hein <- left_join(activity, hein,by="Department")
+
+hein <- rename(hein,Calls=Notated_Calls,Messages = Messages_Left,Accounts.Worked=Accounts_Worked,Average.Calls=Avg_Calls,Average.Accounts.Worked=Avg_Accounts_Worked,Average.Messages=Avg_Messages)
+
 
 setwd("//Knx3fs01/ED_BA_GROUP/Lowhorn/Golden Rule 3/Application")
 runApp(host="0.0.0.0",port=5060)
