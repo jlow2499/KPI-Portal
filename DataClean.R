@@ -19,11 +19,11 @@ if(weekdays(Sys.Date())=="Monday"){
 CODE <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/CODE.csv")
 #########DILLON HIGHTOWER ADD############
 
-#q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
-#r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
-s <- future({ read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/s.csv", stringsAsFactors=FALSE) }) %plan% multiprocess
-t <- future ({ read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/t.csv", stringsAsFactors=FALSE) }) %plan% multiprocess
-
+q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
+r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
+s <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/s.csv", stringsAsFactors=FALSE) 
+t <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/t.csv", stringsAsFactors=FALSE) 
+u <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/u.csv", stringsAsFactors=FALSE) 
 #########################################
 ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
 COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -34,7 +34,9 @@ COND<-arrange(COND,desc(ED_COND_OPEN_DT))
 GRRHBS<-arrange(GRRHBS,desc(ActDate))
 RHBS <- GRRHBS
 #########ADD############
-df <- rbind(value(s),value(t))
+df <- rbind(q,r,s,t,u)
+rm(q); rm(r); rm(s); rm(t); rm(u)
+
 DF <- df
 contacts <- c("CM","A3P","AT")
 
@@ -63,11 +65,15 @@ df <- df %>%
   arrange(TFILE) %>%
   mutate(Minute = Minute + Second/60) %>%
   mutate(Hour.Min = Hour + Minute/60) %>%
-  group_by(TFILE,DTE) %>%
+  group_by(TFILE,DTE,EMPNUM) %>%
   mutate(Diff = Hour.Min - lag(Hour.Min,default=Hour.Min[1])) %>%
   mutate(Diff_Minutes = Diff *60)
 
-df <- df[,-which(names(df)%in%c("T","DTE","Hour","Minute","Second","Diff"))]
+df <- df[,-which(names(df)%in%c("T","DTE","Hour","Minute","Second","Diff","Diff_Minutes"))]
+
+##########lag for employee
+
+
 
 df <- df %>%
   mutate(sub = ifelse(Diff_Minutes >= -60 & Diff_Minutes <= 60 & Diff_Minutes != 0,"sub","no"))
@@ -77,7 +83,10 @@ list <- c(df$sub[-1],"no")
 df<-cbind(df,list)
 
 df <- df %>%
-  mutate(list = ifelse(CODE_3 == "PRM",1,list))
+  mutate(list = ifelse(CODE_3 %in%c("PRM","CMP"),1,list))
+
+
+
 
 
 df <- df[df$list != 2,]
@@ -360,9 +369,14 @@ calls <- calls %>%
             Inbound_Calls = sum(CODE_1=="IC"),
             Outbound_Calls = Notated_Calls - Inbound_Calls,
             Messages_Left = sum(CODE_3=="MSG")+ sum(CODE_3=="LMF"),
-            POE_Attempts = sum(CODE_1=="1P")+sum(CODE_1=="2P"))
+            Messages_Rate = Messages_Left/Notated_Calls,
+            POE_Attempts = sum(CODE_1=="1P")+sum(CODE_1=="2P"),
+            POE_Percent = POE_Attempts/Notated_Calls)
 
 activity <- left_join(worked,calls,by=c("EMPNUM","ACT_DATE"))
+
+activity <- activity %>%
+  mutate(Calls_Per_Account = Notated_Calls/Accounts_Worked)
 
 activity[is.na(activity)] <- 0
 
@@ -387,6 +401,9 @@ activity$Office <- plyr::revalue(activity$Office,c("A"="Atlanta","AGY"="ALL","B"
                                                    "W"="Westlake","C"="Columbus","S"="Schuerger"))
 
 activity <- activity[activity$Manager != "",]
+
+
+
 
 Tracker <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/Tracker.csv", stringsAsFactors=FALSE)
 ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -611,6 +628,45 @@ hein <- activity %>%
 hein <- left_join(activity, hein,by="Department")
 
 hein <- rename(hein,Calls=Notated_Calls,Messages = Messages_Left,Accounts.Worked=Accounts_Worked,Average.Calls=Avg_Calls,Average.Accounts.Worked=Avg_Accounts_Worked,Average.Messages=Avg_Messages)
+
+####new
+
+BG <- df %>%
+  group_by(Collector, Manager, Office, Department, Date) %>%
+  summarize(Contacts = n(),
+            Closed_Calls = sum(CODE_3 %in% c("PRM","CMP")),
+            Conversion_Rate = Closed_Calls/Contacts,
+            RH_Conditions_Verified = sum(Rehab.Condition=="Yes")) %>%
+  ungroup() %>%
+  arrange(desc(Conversion_Rate))
+
+BG$Month <- format(BG$Date, "%B %Y")
+BG <- left_join(BG,activity,by=c("Month","Date","Collector","Manager","Department","Office"))
+
+BG <- BG %>%
+  mutate(Contact_Rate = Contacts/Notated_Calls)
+
+tiff <- BG %>%
+  group_by(Collector,Manager,Department,Office,Month) %>%
+  summarize(Contacts=sum(Contacts),
+            Closed_Calls=sum(Closed_Calls),
+            Conversion_Rate=Closed_Calls/Contacts,
+            Accounts_Worked = sum(Accounts_Worked),
+            Notated_Calls=sum(Notated_Calls),
+            Inbound_Calls=sum(Inbound_Calls),
+            Outbound_Calls=sum(Outbound_Calls),
+            Messages_Left=sum(Messages_Left),
+            Message_Rate=Messages_Left/Outbound_Calls,
+            POE_Attempts=sum(POE_Attempts),
+            POE_Percent=POE_Attempts/Outbound_Calls,
+            Calls_Per_Account=Outbound_Calls/Accounts_Worked,
+            Calls_to_Contacts = Contacts/Notated_Calls,
+            AW_to_Contacts = Contacts/Accounts_Worked)
+
+
+tiff$Manager <- as.factor(tiff$Manager)
+
+tiff[is.na(tiff)] <- 0
 
 
 setwd("//Knx3fs01/ED_BA_GROUP/Lowhorn/Golden Rule 3/Application")
