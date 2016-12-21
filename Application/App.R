@@ -27,10 +27,11 @@ sidebar <- dashboardSidebar(
              menuSubItem("Rehab Report",tabName="RHB",icon=icon("table")),
              menuSubItem("RAL Success by Bucket",tabName="RAL",icon=icon("table")),
              menuSubItem("Download Tool",tabName="DL3",icon=icon("cloud-download"))),
-        menuItem("KPI Forms",tabName="form",icon=icon("list-alt"),
+    menuItem("KPI Forms",tabName="form",icon=icon("list-alt"),
              menuSubItem("Printable Form",tabName="form1",icon=icon("print")),
-             menuSubItem("Collector Graph",tabName="dygraph",icon=icon("line-chart"))
-        )
+             menuSubItem("Collector Graph",tabName="dygraph",icon=icon("line-chart"))),
+    menuItem("Executive KPI Report",tabName="Gentry",icon=icon("briefcase"),
+             menuSubItem("Executive KPI Table",tabName="exec",icon=icon("list-alt")))
     
   
 )
@@ -176,10 +177,22 @@ body <- dashboardBody(
            column(width=6,selectInput("DATUM",h3("Select KPI"),choices=c('Calls',"Accounts Worked","Messages Left")))),
            #DT::dataTableOutput("dytable")
            dygraphOutput("DYGRAPH")
+          ),
+   tabItem(tabName="exec",
+           fluidRow(column(width=2),
+                    column(width=4,
+                           selectInput("bglevel","Group",choices=c("Office","Department","Manager"))),
+                    column(width=6,
+                                           checkboxGroupInput("bgoff","Office",choices=c("Knoxville","Columbus","Columbus 2","Schuerger","Westlake"),
+                                                              selected=c("Knoxville"),inline=T)         
+           )),
+             
+          DT::dataTableOutput("exectable")
+          
           )
-    )
-    
-  )
+   
+   
+  ))
 
 
 ui <- dashboardPage(
@@ -193,8 +206,6 @@ ui <- dashboardPage(
 
 server <- function(input, output) {
   
-  
-
 
 
   output$darn <- renderUI({
@@ -202,7 +213,7 @@ server <- function(input, output) {
     if(input$time == "Monthly"){
     
     selectInput("Month","Month",
-                              choices=c("September 2016","October 2016","November 2016"),
+                              choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
                              selected=currmonth)}else{
                                dateInput("Day",
                                          label="Date",
@@ -218,7 +229,7 @@ output$darn3 <- renderUI({
   if(input$time3 == "Monthly"){
     
     selectInput("Month3","Month",
-                choices=c("September 2016","October 2016","November 2016"),
+                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
                 selected=currmonth)}else{
                   dateInput("Day3",
                             label="Date",
@@ -240,7 +251,7 @@ output$darn2 <- renderUI({
   if(input$time2 == "Monthly"){
     
     selectInput(inputId="Month2","Month",
-                choices=c("September 2016","October 2016","November 2016"),
+                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
                 selected=currmonth)}else{
                   dateInput("Day2",
                             label="Date",
@@ -250,7 +261,6 @@ output$darn2 <- renderUI({
                   
                 }
 })
-
 
   
 data <- reactive({
@@ -913,14 +923,20 @@ calloffmon <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b
     
 })
@@ -936,14 +952,20 @@ calloffday <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b <- b[,!names(b)%in%"Date"]
   b
   
@@ -962,14 +984,20 @@ calldeptmon <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b
   
 })
@@ -985,14 +1013,20 @@ calldeptday <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b <- b[,!names(b)%in%"Date"]
   b
   
@@ -1009,14 +1043,20 @@ callmgrmon <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b
   
 })
@@ -1032,14 +1072,20 @@ callmgrday <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b <- b[,!names(b)%in%"Date"]
   b
   
@@ -1056,14 +1102,20 @@ callcolmon <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b
   
 })
@@ -1079,14 +1131,20 @@ callcolday <- reactive({
               Notated_Calls = sum(Notated_Calls),
               Outbound_Calls=sum(Outbound_Calls),
               Inbound_Calls = sum(Inbound_Calls),
+              Calls_Per_Account = Notated_Calls/Accounts_Worked,
               Messages_Left = sum(Messages_Left),
-              POE_Attempts = sum(POE_Attempts))
+              Messages_Rate = Messages_Left/Outbound_Calls,
+              POE_Attempts = sum(POE_Attempts),
+              POE_Percent = POE_Attempts/Notated_Calls)
   b <- plyr::rename(b, c("Accounts_Worked"="Accounts Worked",
                          "Notated_Calls"="Notated Calls",
                          "Outbound_Calls"="Outbound Calls",
                          "Inbound_Calls"="Inbound Calls",
                          "Messages_Left"="Messages Left",
-                         "POE_Attempts"="Top 5 POE Attempts"))
+                         "POE_Attempts"="Top 5 POE Attempts",
+                         "Calls_Per_Account"="Calls Per Account",
+                         "Messages_Rate"="Message Rate",
+                         "POE_Percent"="POE Call Rate"))
   b <- b[,!names(b)%in%"Date"]
   b
   
@@ -1157,9 +1215,7 @@ dt3 <- reactive({
          "Daily Office" = calloffday(),
          "Daily Department" = calldeptday(),
          "Daily Manager" = callmgrday(),
-         "Daily Collector" = callcolday()
-         
-         
+         "Daily Collector" = callcolday()        
   )
 })
 
@@ -1170,20 +1226,37 @@ dt3 <- reactive({
   
   output$dt <- DT::renderDataTable({
     table <- datatable(dt(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
-              options = list(
-                searching=TRUE,
-                autoWidth=TRUE,
-                paging=FALSE,
-                
-                "sDom" = 'T<"clear">lfrtip',
-                "oTableTools" = list(
-                  "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                  "aButtons" = list(
-                    "copy",
-                    "print",
-                    list("sExtends" = "collection",
-                         "sButtonText" = "Save",
-                         "aButtons" = c("csv","xls"))))))
+                       options = list(
+                         searching=TRUE,
+                         autoWidth=TRUE,
+                         paging=FALSE,
+                         
+                         "sDom" = 'T<"clear">lfrtip',
+                         "oTableTools" = list(
+                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
+                           "aButtons" = list(
+                             "copy",
+                             "print",
+                             list("sExtends" = "collection",
+                                  "sButtonText" = "Save",
+                                  "aButtons" = c("csv","xls"))))))
+     table <- if(input$type == "Collections"){
+      
+     table <- formatStyle(table,
+        'Conversion Rate',
+        background = styleColorBar(dt()$"Conversion Rate", 'steelblue'),
+        backgroundSize = '100% 90%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      ) 
+     table <- formatStyle(table,
+        'Contacts',
+        background = styleColorBar(dt()$"Contacts", 'steelblue'),
+        backgroundSize = '100% 90%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      )}else{table}
+      
     
     table <- if(input$type == "Collections")
                  {formatPercentage(table,"Conversion Rate",digits=2)}
@@ -1208,8 +1281,32 @@ output$dt3 <- DT::renderDataTable({
                            "print",
                            list("sExtends" = "collection",
                                 "sButtonText" = "Save",
-                                "aButtons" = c("csv","xls"))))))
+                                "aButtons" = c("csv","xls")))))) %>%
+    formatStyle(
+      'Message Rate',
+      background = styleColorBar(dt3()$"Message Rate", 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'POE Call Rate',
+      background = styleColorBar(dt3()$"POE Call Rate", 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Calls Per Account',
+      background = styleColorBar(dt3()$"Calls Per Account", 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
   
+  table <- formatPercentage(table,"Message Rate",digits=2)
+  table <- formatPercentage(table,"POE Call Rate",digits=2)
+  table <- formatRound(table,"Calls Per Account",3)
   table
   
 })
@@ -1425,20 +1522,20 @@ ralsuc <- reactive({
 
 output$ralsuc <- DT::renderDataTable({
     table <- datatable(ralsuc(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
-                     options = list(
-                       searching=TRUE,
-                       autoWidth=TRUE,
-                       paging=FALSE,
-                       
-                       "sDom" = 'T<"clear">lfrtip',
-                       "oTableTools" = list(
-                         "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                         "aButtons" = list(
-                           "copy",
-                           "print",
-                           list("sExtends" = "collection",
-                                "sButtonText" = "Save",
-                                "aButtons" = c("csv","xls"))))))
+                       options = list(
+                         searching=TRUE,
+                         autoWidth=TRUE,
+                         paging=FALSE,
+                         
+                         "sDom" = 'T<"clear">lfrtip',
+                         "oTableTools" = list(
+                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
+                           "aButtons" = list(
+                             "copy",
+                             "print",
+                             list("sExtends" = "collection",
+                                  "sButtonText" = "Save",
+                                  "aButtons" = c("csv","xls"))))))
     
     table <- formatPercentage(table,"Income Docs Returned %",digits=2)
     table <- formatPercentage(table,"RAL Percent",digits=2)
@@ -1488,11 +1585,161 @@ graph <- reactive({
 output$DYGRAPH <- renderDygraph({
   dygraph(graph(),main="KPI to Department Average") %>%
     dyRangeSelector()
-    
 })
 
 
+####Executive KPI Report####
 
+gentry_office <- reactive({
+  a <- tiff[tiff$Office %in% input$bgoff,]
+  a <- a %>%
+    group_by(Office,Month) %>%
+    summarize(Contacts_Per_AR = sum(Contacts)/n_distinct(Collector),
+              Close_Rate=sum(Closed_Calls)/sum(Contacts),
+              Calls_Per_AR = sum(Notated_Calls)/n_distinct(Collector),
+              Outbound_Per_AR = sum(Outbound_Calls)/n_distinct(Collector),
+              Inbound_Per_AR = sum(Inbound_Calls)/n_distinct(Collector),
+              Messages_Per_AR = sum(Messages_Left)/n_distinct(Collector),
+              Message_Rate=sum(Messages_Left)/sum(Outbound_Calls),
+              POE_Attempts_Per_AR = sum(POE_Attempts)/n_distinct(Collector),
+              POE_Percent = sum(POE_Attempts)/sum(Outbound_Calls),
+              Calls_Per_Account=sum(Outbound_Calls)/sum(Accounts_Worked),
+              Calls_to_Contacts = sum(Contacts)/sum(Notated_Calls),
+              AW_to_Contacts = sum(Contacts)/sum(Accounts_Worked)
+    )
+  
+  a <- plyr::rename(a,c("Contacts_Per_AR"="Contacts Per AR",
+                        "Close_Rate"="Close Rate",
+                        "Calls_Per_AR"="Calls Per AR",
+                        "Outbound_Per_AR"="Outbound Calls Per AR",
+                        "Inbound_Per_AR"="Inbound Calls Per AR",
+                        "Messages_Per_AR"="Messages Per AR",
+                        "Message_Rate" = "Message Rate",
+                        "POE_Attempts_Per_AR"="POE Attempts Per AR",
+                        "POE_Percent"="POE Calls Percent",
+                        "Calls_Per_Account"="Calls Per Account",
+                        "Calls_to_Contacts"="Contacts to Calls",
+                        "AW_to_Contacts"="Contacts to Accounts Worked"))
+})
+
+gentry_department <- reactive({
+  a <- tiff[tiff$Office %in% input$bgoff,]
+  a <- a %>%
+    group_by(Department,Office,Month) %>%
+    summarize(Contacts_Per_AR = sum(Contacts)/n_distinct(Collector),
+              Close_Rate=sum(Closed_Calls)/sum(Contacts),
+              Calls_Per_AR = sum(Notated_Calls)/n_distinct(Collector),
+              Outbound_Per_AR = sum(Outbound_Calls)/n_distinct(Collector),
+              Inbound_Per_AR = sum(Inbound_Calls)/n_distinct(Collector),
+              Messages_Per_AR = sum(Messages_Left)/n_distinct(Collector),
+              Message_Rate=sum(Messages_Left)/sum(Outbound_Calls),
+              POE_Attempts_Per_AR = sum(POE_Attempts)/n_distinct(Collector),
+              POE_Percent = sum(POE_Attempts)/sum(Outbound_Calls),
+              Calls_Per_Account=sum(Outbound_Calls)/sum(Accounts_Worked),
+              Calls_to_Contacts = sum(Contacts)/sum(Notated_Calls),
+              AW_to_Contacts = sum(Contacts)/sum(Accounts_Worked)
+    )
+  a <- a[,!names(a)%in%c("Office")]
+  
+  a <- plyr::rename(a,c("Contacts_Per_AR"="Contacts Per AR",
+                        "Close_Rate"="Close Rate",
+                        "Calls_Per_AR"="Calls Per AR",
+                        "Outbound_Per_AR"="Outbound Calls Per AR",
+                        "Inbound_Per_AR"="Inbound Calls Per AR",
+                        "Messages_Per_AR"="Messages Per AR",
+                        "Message_Rate" = "Message Rate",
+                        "POE_Attempts_Per_AR"="POE Attempts Per AR",
+                        "POE_Percent"="POE Calls Percent",
+                        "Calls_Per_Account"="Calls Per Account",
+                        "Calls_to_Contacts"="Contacts to Calls",
+                        "AW_to_Contacts"="Contacts to Accounts Worked"))
+})
+
+gentry_manager <- reactive({
+  a <- tiff[tiff$Office %in% input$bgoff,]
+  a <- a %>%
+    group_by(Manager,Department,Office,Month) %>%
+    summarize(Contacts_Per_AR = sum(Contacts)/n_distinct(Collector),
+              Close_Rate=sum(Closed_Calls)/sum(Contacts),
+              Calls_Per_AR = sum(Notated_Calls)/n_distinct(Collector),
+              Outbound_Per_AR = sum(Outbound_Calls)/n_distinct(Collector),
+              Inbound_Per_AR = sum(Inbound_Calls)/n_distinct(Collector),
+              Messages_Per_AR = sum(Messages_Left)/n_distinct(Collector),
+              Message_Rate=sum(Messages_Left)/sum(Outbound_Calls),
+              POE_Attempts_Per_AR = sum(POE_Attempts)/n_distinct(Collector),
+              POE_Percent = sum(POE_Attempts)/sum(Outbound_Calls),
+              Calls_Per_Account=sum(Outbound_Calls)/sum(Accounts_Worked),
+              Calls_to_Contacts = sum(Contacts)/sum(Notated_Calls),
+              AW_to_Contacts = sum(Contacts)/sum(Accounts_Worked)
+    )
+  a <- a[,!names(a)%in%c("Department","Office")]
+  
+  a <- plyr::rename(a,c("Contacts_Per_AR"="Contacts Per AR",
+                        "Close_Rate"="Close Rate",
+                        "Calls_Per_AR"="Calls Per AR",
+                        "Outbound_Per_AR"="Outbound Calls Per AR",
+                        "Inbound_Per_AR"="Inbound Calls Per AR",
+                        "Messages_Per_AR"="Messages Per AR",
+                        "Message_Rate" = "Message Rate",
+                        "POE_Attempts_Per_AR"="POE Attempts Per AR",
+                        "POE_Percent"="POE Calls Percent",
+                        "Calls_Per_Account"="Calls Per Account",
+                        "Calls_to_Contacts"="Contacts to Calls",
+                        "AW_to_Contacts"="Contacts to Accounts Worked"))
+})
+
+
+gentrytext <- reactive({input$bglevel})
+
+bgentry <- reactive({
+  switch(gentrytext(),
+         "Office"=gentry_office(),
+         "Department"=gentry_department(),
+         "Manager"=gentry_manager()
+  )
+  
+})
+
+output$exectable <- DT::renderDataTable({
+  table <- datatable(bgentry(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+                     options = list(
+                       searching=TRUE,
+                       autoWidth=TRUE,
+                       paging=FALSE,
+                       
+                       "sDom" = 'T<"clear">lfrtip',
+                       "oTableTools" = list(
+                         "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
+                         "aButtons" = list(
+                           "copy",
+                           "print",
+                           list("sExtends" = "collection",
+                                "sButtonText" = "Save",
+                                "aButtons" = c("csv","xls"))))))
+  
+  table <- formatPercentage(table,"POE Calls Percent",digits=2)
+  table <- formatPercentage(table,"Close Rate",digits=2)
+  table <- formatPercentage(table,"Contacts to Calls",digits=2)
+  table <- formatPercentage(table,"Contacts to Accounts Worked",digits=2)
+  table <- formatPercentage(table,"Message Rate",digits=2)
+  table <- formatRound(table,"Contacts Per AR",2)
+  table <- formatRound(table,"Calls Per AR",2)
+  table <- formatRound(table,"Outbound Calls Per AR",2)
+  table <- formatRound(table,"Inbound Calls Per AR",2)
+  table <- formatRound(table,"Messages Per AR",2)
+  table <- formatRound(table,"POE Attempts Per AR",2)
+  table <- formatRound(table,"Calls Per Account",2)
+  
+  
+  table
+  
+})
+
+checkboxGroupInput("bgoff","Office",choices=c("Knoxville","Columbus","Columbus 2","Schuerger","Westlake"),
+                   selected=c("Knoxville","Columbus","Columbus 2","Schuerger","Westlake"),inline=T)
+
+
+############################
 
 }
 shinyApp(ui, server)
