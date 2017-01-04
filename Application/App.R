@@ -8,6 +8,8 @@ if(weekdays(Sys.Date())=="Monday"){
   x <- 1
 }
 
+tiff$Month <- factor(tiff$Month, levels=c("January 2017","December 2016","November 2016","October 2016","September 2016","August 2016",
+                                          "July 2016","June 2016"))
 library(shiny)
 library(shinydashboard)
 library(DT)
@@ -39,7 +41,8 @@ sidebar <- dashboardSidebar(
 
 body <- dashboardBody(
   tabItems(
-    tabItem(tabName="KPI",h1("Powered By:"),img(src='Capture.png')),
+    tabItem(tabName="KPI",h1("Powered By:"),img(src='Capture.png'),
+           h2(textOutput("counter"))),
     tabItem(tabName = "dashboard",fluidRow(
             column(width=3,selectInput("type","Type of Call",
                                        choices=c("Collections","Program Follow Up"))),
@@ -187,7 +190,9 @@ body <- dashboardBody(
                                                               selected=c("Knoxville"),inline=T)         
            )),
              
-          DT::dataTableOutput("exectable")
+          DT::dataTableOutput("exectable"),
+          
+          fluidRow(h2("*All values are calculated on a per diem basis by month"))
           
           )
    
@@ -196,10 +201,10 @@ body <- dashboardBody(
 
 
 ui <- dashboardPage(
-  dashboardHeader(title = "KPI Portal",
-                  dropdownMenu(type="notifications",
-                               notificationItem(text=textOutput("counter"),icon=icon("users"))
-                  )),
+  dashboardHeader(title = "KPI Portal"
+                 # dropdownMenu(type="notifications",
+                 #              notificationItem(text=textOutput("counter"),icon=icon("users"))
+                  ),
   sidebar,
   body
 )
@@ -213,7 +218,7 @@ server <- function(input, output) {
     if(input$time == "Monthly"){
     
     selectInput("Month","Month",
-                              choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
+                              choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
                              selected=currmonth)}else{
                                dateInput("Day",
                                          label="Date",
@@ -229,7 +234,7 @@ output$darn3 <- renderUI({
   if(input$time3 == "Monthly"){
     
     selectInput("Month3","Month",
-                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
+                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
                 selected=currmonth)}else{
                   dateInput("Day3",
                             label="Date",
@@ -251,7 +256,7 @@ output$darn2 <- renderUI({
   if(input$time2 == "Monthly"){
     
     selectInput(inputId="Month2","Month",
-                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016"),
+                choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
                 selected=currmonth)}else{
                   dateInput("Day2",
                             label="Date",
@@ -578,7 +583,8 @@ output$fund <- renderText({
     e <- left_join(e,MDay,by=c("Date","Manager"))
     e$Manager <- as.factor(e$Manager)
     e <- e[,-4]
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -596,7 +602,8 @@ output$fund <- renderText({
     e$Month <- as.factor(e$Month)
     e <- left_join(e,MMonth,by=c("Manager","Month"))
     e$Manager <- as.factor(e$Manager)
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -614,7 +621,8 @@ output$fund <- renderText({
     e$Month <- as.factor(e$Month)
     e <- left_join(e,CMonth,by=c("Collector","Month"))
     e$Collector <- as.factor(e$Collector)
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -632,7 +640,8 @@ output$fund <- renderText({
     e <- left_join(e,CDay,by=c("Collector","Date"))
     e$Collector <- as.factor(e$Collector)
     e <- e[,-5]
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -650,7 +659,8 @@ output$fund <- renderText({
     e <- left_join(e,DeptDay,by=c("Department","Office","Date"))
     e$Department <- as.factor(e$Department)
     e <- e[,-3]
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -667,7 +677,8 @@ output$fund <- renderText({
     e$Department <- as.factor(e$Department)
     e <- left_join(e,DeptMonth,by=c("Department","Office","Month"))
     e$Department <- as.factor(e$Department)
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -685,7 +696,8 @@ output$fund <- renderText({
     e <- left_join(e,ODay,by=c("Office","Date"))
     e$Office <- as.factor(e$Office)
     e <- e[,-2]
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
     e
   })
   
@@ -702,7 +714,10 @@ output$fund <- renderText({
     e$Office <- as.factor(e$Office)
     e <- left_join(e,OMonth,by=c("Office","Month"))
     e$Office <- as.factor(e$Office)
-    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Conversion Rate"))
+    e <- plyr::rename(e,c("RH_Conditions_Verified"="RH Conditions Verified","Closed_Calls"="Closed Calls","Rehabs_On_Tracker"="Rehabs On Tracker","Conversion_Rate"="Close Rate"))
+    
+    e <- e[,!names(e)%in%"Rehabs On Tracker"]
+    
     e
   })
   
@@ -1243,8 +1258,8 @@ dt3 <- reactive({
      table <- if(input$type == "Collections"){
       
      table <- formatStyle(table,
-        'Conversion Rate',
-        background = styleColorBar(dt()$"Conversion Rate", 'steelblue'),
+        'Close Rate',
+        background = styleColorBar(dt()$"Close Rate", 'steelblue'),
         backgroundSize = '100% 90%',
         backgroundRepeat = 'no-repeat',
         backgroundPosition = 'center'
@@ -1259,7 +1274,7 @@ dt3 <- reactive({
       
     
     table <- if(input$type == "Collections")
-                 {formatPercentage(table,"Conversion Rate",digits=2)}
+                 {formatPercentage(table,"Close Rate",digits=2)}
                  else{table}
     
     table
@@ -1715,7 +1730,94 @@ output$exectable <- DT::renderDataTable({
                            "print",
                            list("sExtends" = "collection",
                                 "sButtonText" = "Save",
-                                "aButtons" = c("csv","xls"))))))
+                                "aButtons" = c("csv","xls")))))) %>%
+    
+    formatStyle(
+      'Contacts Per AR',
+      background = styleColorBar(bgentry()$"Contacts Per AR", 'blanchedalmond'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'Close Rate',
+      background = styleColorBar(bgentry()$"Close Rate", 'burlywood'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Calls Per AR',
+      background = styleColorBar(bgentry()$"Calls Per AR", 'aquamarine'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Outbound Calls Per AR',
+      background = styleColorBar(bgentry()$"Outbound Calls Per AR", 'darkkhaki'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Inbound Calls Per AR',
+      background = styleColorBar(bgentry()$"Inbound Calls Per AR", 'navajowhite'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Messages Per AR',
+      background = styleColorBar(bgentry()$"Messages Per AR", 'bisque'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Message Rate',
+      background = styleColorBar(bgentry()$"Message Rate", 'darkseagreen'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'POE Attempts Per AR',
+      background = styleColorBar(bgentry()$"POE Attempts Per AR", 'peachpuff'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'POE Calls Percent',
+      background = styleColorBar(bgentry()$"POE Calls Percent", 'khaki'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Calls Per Account',
+      background = styleColorBar(bgentry()$"Calls Per Account", 'cyan'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Contacts to Calls',
+      background = styleColorBar(bgentry()$"Contacts to Calls", 'lightgoldenrodyellow'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )%>%
+    formatStyle(
+      'Contacts to Accounts Worked',
+      background = styleColorBar(bgentry()$"Contacts to Accounts Worked", 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+    
+    
   
   table <- formatPercentage(table,"POE Calls Percent",digits=2)
   table <- formatPercentage(table,"Close Rate",digits=2)
@@ -1737,6 +1839,7 @@ output$exectable <- DT::renderDataTable({
 
 checkboxGroupInput("bgoff","Office",choices=c("Knoxville","Columbus","Columbus 2","Schuerger","Westlake"),
                    selected=c("Knoxville","Columbus","Columbus 2","Schuerger","Westlake"),inline=T)
+
 
 
 ############################
