@@ -19,11 +19,14 @@ if(weekdays(Sys.Date())=="Monday"){
 CODE <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/CODE.csv")
 #########DILLON HIGHTOWER ADD############
 
+o <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/o.csv", stringsAsFactors=FALSE)
+p <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/p.csv", stringsAsFactors=FALSE)
 q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
 r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
 s <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/s.csv", stringsAsFactors=FALSE) 
 t <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/t.csv", stringsAsFactors=FALSE) 
 u <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/u.csv", stringsAsFactors=FALSE) 
+v <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/v.csv", stringsAsFactors=FALSE) 
 #########################################
 ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
 COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -34,8 +37,8 @@ COND<-arrange(COND,desc(ED_COND_OPEN_DT))
 GRRHBS<-arrange(GRRHBS,desc(ActDate))
 RHBS <- GRRHBS
 #########ADD############
-df <- rbind(q,r,s,t,u)
-rm(q); rm(r); rm(s); rm(t); rm(u)
+df <- rbind(o,p,q,r,s,t,u,v)
+rm(q); rm(r); rm(s); rm(t); rm(u);rm(o);rm(p);rm(v)
 
 DF <- df
 contacts <- c("CM","A3P","AT")
@@ -154,7 +157,7 @@ pf$Month <- factor(pf$Month,levels=c("January 2015","February 2015","March 2015"
                                      "September 2015", "October 2015", "November 2015", "December 2015",
                                      "January 2016","February 2016","March 2016","April 2016","May 2016",
                                      "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                     "November 2016", "December 2016"))
+                                     "November 2016", "December 2016","January 2017"))
 
 ##############################################################################################
 ##############################################################################################
@@ -268,7 +271,7 @@ df$Month <- factor(df$Month,levels=c("January 2015","February 2015","March 2015"
                                      "September 2015", "October 2015", "November 2015", "December 2015",
                                      "January 2016","February 2016","March 2016","April 2016","May 2016",
                                      "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                     "November 2016", "December 2016"))
+                                     "November 2016", "December 2016","January 2017"))
 
 ##############################################################################################
 ##############################################################################################
@@ -472,7 +475,7 @@ docs <- Tracker %>%
 docs$SetupMonth <- factor(docs$SetupMonth,levels=c(
   "January 2016","February 2016","March 2016","April 2016","May 2016",
   "June 2016","July 2016","August 2016","September 2016","October 2016",
-  "November 2016", "December 2016"))
+  "November 2016", "December 2016","January 2017"))
 docs$Department <- as.factor(docs$Department)
 docs$Manager <- as.factor(docs$Manager)
 docs$Collector <- as.factor(docs$Collector)
@@ -486,7 +489,7 @@ Tracker$SetupMonth <- factor(Tracker$SetupMonth,levels=c("January 2015","Februar
                                                          "September 2015", "October 2015", "November 2015", "December 2015",
                                                          "January 2016","February 2016","March 2016","April 2016","May 2016",
                                                          "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                                         "November 2016", "December 2016"))
+                                                         "November 2016", "December 2016","January 2017"))
 
 
 COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -646,18 +649,21 @@ BG <- left_join(BG,activity,by=c("Month","Date","Collector","Manager","Departmen
 BG <- BG %>%
   mutate(Contact_Rate = Contacts/Notated_Calls)
 
+BG <- BG[!BG$Collector %in% "",]
+BG <- BG[!BG$Manager %in% "",]
+
 tiff <- BG %>%
   group_by(Collector,Manager,Department,Office,Month) %>%
-  summarize(Contacts=sum(Contacts),
-            Closed_Calls=sum(Closed_Calls),
+  summarize(Contacts=sum(Contacts)/n_distinct(Date),
+            Closed_Calls=sum(Closed_Calls)/n_distinct(Date),
             Conversion_Rate=Closed_Calls/Contacts,
-            Accounts_Worked = sum(Accounts_Worked),
-            Notated_Calls=sum(Notated_Calls),
-            Inbound_Calls=sum(Inbound_Calls),
-            Outbound_Calls=sum(Outbound_Calls),
-            Messages_Left=sum(Messages_Left),
+            Accounts_Worked = sum(Accounts_Worked)/n_distinct(Date),
+            Notated_Calls=sum(Notated_Calls)/n_distinct(Date),
+            Inbound_Calls=sum(Inbound_Calls)/n_distinct(Date),
+            Outbound_Calls=sum(Outbound_Calls)/n_distinct(Date),
+            Messages_Left=sum(Messages_Left)/n_distinct(Date),
             Message_Rate=Messages_Left/Outbound_Calls,
-            POE_Attempts=sum(POE_Attempts),
+            POE_Attempts=sum(POE_Attempts)/n_distinct(Date),
             POE_Percent=POE_Attempts/Outbound_Calls,
             Calls_Per_Account=Outbound_Calls/Accounts_Worked,
             Calls_to_Contacts = Contacts/Notated_Calls,
@@ -665,6 +671,8 @@ tiff <- BG %>%
 
 
 tiff$Manager <- as.factor(tiff$Manager)
+tiff$Office <- as.factor(tiff$Office)
+tiff$Month <- as.factor(tiff$Month)
 
 tiff[is.na(tiff)] <- 0
 
