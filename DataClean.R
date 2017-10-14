@@ -12,21 +12,13 @@ x <- c()
 if(weekdays(Sys.Date())=="Monday"){
   x <- 3
 }else{
-  x <- 1
+  x <- 1.
 }
 
 
 CODE <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/CODE.csv")
 #########DILLON HIGHTOWER ADD############
 
-o <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/o.csv", stringsAsFactors=FALSE)
-p <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/p.csv", stringsAsFactors=FALSE)
-q <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/q.csv", stringsAsFactors=FALSE)
-r <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/r.csv", stringsAsFactors=FALSE)
-s <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/s.csv", stringsAsFactors=FALSE) 
-t <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/t.csv", stringsAsFactors=FALSE) 
-u <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/u.csv", stringsAsFactors=FALSE) 
-v <-  read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/v.csv", stringsAsFactors=FALSE) 
 #########################################
 ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
 COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -37,10 +29,25 @@ COND<-arrange(COND,desc(ED_COND_OPEN_DT))
 GRRHBS<-arrange(GRRHBS,desc(ActDate))
 RHBS <- GRRHBS
 #########ADD############
-df <- rbind(o,p,q,r,s,t,u,v)
-rm(q); rm(r); rm(s); rm(t); rm(u);rm(o);rm(p);rm(v)
+
+
+df <- readRDS('C:/ACTDB/ACT_DB.rds')
+
+df$ACT_DATE <- as.Date(df$ACT_DATE,'%m/%d/%Y')
+
+Date <- Sys.Date()-120
+Date <- format(Date,'%m/%d/%Y')
+Date <- stringr::str_split_fixed(Date,pattern='/',n=3)
+Date <- paste0(Date[1],'/','1','/',Date[3])
+Date <- as.Date(Date,'%m/%d/%Y')
+
+df <- df[df$ACT_DATE >= Date,]
+
+df$ACT_DATE <- format(df$ACT_DATE,'%m/%d/%Y')
 
 DF <- df
+gap <- df
+
 contacts <- c("CM","A3P","AT")
 
 df <- df[df$CODE_2 %in% contacts,]
@@ -67,12 +74,12 @@ df <- df %>%
   arrange(DTE) %>%
   arrange(TFILE) %>%
   mutate(Minute = Minute + Second/60) %>%
-  mutate(Hour.Min = Hour + Minute/60) %>%
+  mutate(Hour.Min = Hour + Minute/60)%>%
   group_by(TFILE,DTE,EMPNUM) %>%
-  mutate(Diff = Hour.Min - lag(Hour.Min,default=Hour.Min[1])) %>%
-  mutate(Diff_Minutes = Diff *60)
+  mutate(Diff = Hour.Min-lag(Hour.Min,1)) %>%
+  mutate(Diff_Minutes = Diff * 60)
 
-df <- df[,-which(names(df)%in%c("T","DTE","Hour","Minute","Second","Diff","Diff_Minutes"))]
+df <- df[,-which(names(df)%in%c("T","DTE","Hour","Minute","Second","Diff"))]
 
 ##########lag for employee
 
@@ -81,7 +88,7 @@ df <- df[,-which(names(df)%in%c("T","DTE","Hour","Minute","Second","Diff","Diff_
 df <- df %>%
   mutate(sub = ifelse(Diff_Minutes >= -60 & Diff_Minutes <= 60 & Diff_Minutes != 0,"sub","no"))
 
-list <- c(df$sub[-1],"no")
+list <- c(df$sub[-1],"sub")
 
 df<-cbind(df,list)
 
@@ -89,7 +96,7 @@ df <- df %>%
   mutate(list = ifelse(CODE_3 %in%c("PRM","CMP"),1,list))
 
 
-
+df$list[is.na(df$list)] <- 1
 
 
 df <- df[df$list != 2,]
@@ -119,7 +126,10 @@ COND <- COND %>%
 
 COND <- mutate(COND,Rehab.Condition = "Yes")
 COND <- COND[,names(COND) != "EMPNUM"]
+
+COND$TFILE <- as.character(COND$TFILE)
 pf <- left_join(pf,COND,by=c("TFILE"))
+COND$TFILE <- as.numeric(COND$TFILE)
 
 pf$ED_PROOF_INCOME_DT <- as.Date(pf$ED_PROOF_INCOME_DT,"%m/%d/%Y")
 
@@ -131,7 +141,7 @@ ARMASTER <- select(ARMASTER,EMPNUM,A.R,manager,DEPT,off,SUB)
 pf <- left_join(pf,ARMASTER,by="EMPNUM") %>%
   rename(Collector = A.R, Manager = manager, Department = DEPT, Office = off,Date = ACT_DATE.x)
 pf <- pf[pf$Department %in% "PRO",]
-pf <- pf[pf$SUB %in% c("AR","VERF","HIR","AWG"),]
+pf <- pf[pf$SUB %in% c("AR","VERF","HIR","AWG","ADM"),]
 
 pf$Office <- as.factor(pf$Office)
 pf <- pf %>%
@@ -157,7 +167,9 @@ pf$Month <- factor(pf$Month,levels=c("January 2015","February 2015","March 2015"
                                      "September 2015", "October 2015", "November 2015", "December 2015",
                                      "January 2016","February 2016","March 2016","April 2016","May 2016",
                                      "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                     "November 2016", "December 2016","January 2017"))
+                                     "November 2016", "December 2016","January 2017","February 2017", "March 2017",
+                                     "April 2017","May 2017","June 2017","July 2017", "August 2017",'September 2017',
+                                     ,'October 2017'))
 
 ##############################################################################################
 ##############################################################################################
@@ -215,7 +227,10 @@ COND <- COND %>%
 COND <- COND[!COND$EMPNUM %in% emp,]
 rm(emp)
 COND <- mutate(COND,Rehab.Condition = "Yes")
+COND$TFILE <- as.character(COND$TFILE)
 df <- left_join(df,COND,by=c("TFILE","ACT_DATE","EMPNUM"))
+
+
 rm(COND)
 df <- mutate(df,Rehab.Condition = ifelse(is.na(Rehab.Condition), "No", Rehab.Condition))
 rh <- GRRHBS
@@ -226,6 +241,7 @@ GRRHBS <- GRRHBS %>%
 GRRHBS$ACT_DATE <- as.Date(GRRHBS$ACT_DATE,format="%Y=%m-%d")
 GRRHBS <- GRRHBS %>%
   arrange(desc(ACT_DATE))
+GRRHBS$TFILE <- as.character(GRRHBS$TFILE)
 
 df <- left_join(df,GRRHBS,by=c("TFILE","ACT_DATE"))
 rm(GRRHBS)
@@ -255,6 +271,7 @@ rh <- rh %>%
   rename(ARNUM = desk, Date = ActDate) %>%
   mutate(Credit = "Yes")
 rh$ARNUM <- as.character(rh$ARNUM)
+rh$TFILE <- as.character(rh$TFILE)
 df <- left_join(df,rh,by=c("ARNUM","Date","TFILE"))
 rm(rh)
 df <- mutate(df,Credit = ifelse(is.na(Credit),"No",Credit))
@@ -271,7 +288,9 @@ df$Month <- factor(df$Month,levels=c("January 2015","February 2015","March 2015"
                                      "September 2015", "October 2015", "November 2015", "December 2015",
                                      "January 2016","February 2016","March 2016","April 2016","May 2016",
                                      "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                     "November 2016", "December 2016","January 2017"))
+                                     "November 2016", "December 2016","January 2017","February 2017","March 2017",
+                                     "April 2017","May 2017", "June 2017","July 2017", "August 2017",'September 2017',
+                                     'October 2017'))
 
 ##############################################################################################
 ##############################################################################################
@@ -387,7 +406,7 @@ ARMASTER <- ARMASTER %>%
   select(EMPNUM,A.R,manager,DEPT,off,SUB)
 
 activity <- left_join(activity, ARMASTER,by="EMPNUM")
-activity <- activity[activity$SUB %in% c("HIR","VERF","HIR","AWG","GAR","AR"),]
+activity <- activity[activity$SUB %in% c("HIR","VERF","AWG","GAR","AR",'SWAT'),]
 
 activity <- plyr::rename(activity,c("ACT_DATE"="Date","A.R"="Collector",
                                     "manager"="Manager","DEPT"="Department",
@@ -475,7 +494,9 @@ docs <- Tracker %>%
 docs$SetupMonth <- factor(docs$SetupMonth,levels=c(
   "January 2016","February 2016","March 2016","April 2016","May 2016",
   "June 2016","July 2016","August 2016","September 2016","October 2016",
-  "November 2016", "December 2016","January 2017"))
+  "November 2016", "December 2016","January 2017","February 2017","March 2017",
+  "April 2017","May 2017","June 2017","July 2017", "August 2017",'September 2017',
+  'October 2017'))
 docs$Department <- as.factor(docs$Department)
 docs$Manager <- as.factor(docs$Manager)
 docs$Collector <- as.factor(docs$Collector)
@@ -489,7 +510,9 @@ Tracker$SetupMonth <- factor(Tracker$SetupMonth,levels=c("January 2015","Februar
                                                          "September 2015", "October 2015", "November 2015", "December 2015",
                                                          "January 2016","February 2016","March 2016","April 2016","May 2016",
                                                          "June 2016","July 2016","August 2016","September 2016","October 2016",
-                                                         "November 2016", "December 2016","January 2017"))
+                                                         "November 2016", "December 2016","January 2017","February 2017","March 2017",
+                                                         "April 2017","May 2017","June 2017","July 2017", "August 2017",'September 2017',
+                                                         'October 2017'))
 
 
 COND <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/COND.csv",header=TRUE,stringsAsFactors = FALSE)
@@ -676,6 +699,284 @@ tiff$Month <- as.factor(tiff$Month)
 
 tiff[is.na(tiff)] <- 0
 
+#########
 
-setwd("//Knx3fs01/ED_BA_GROUP/Lowhorn/Golden Rule 3/Application")
-runApp(host="0.0.0.0",port=5060)
+emp <-c("0","1")
+gap$EMPNUM <- as.character(gap$EMPNUM)
+gap <- gap[!gap$EMPNUM %in% emp,]
+rm(emp)
+
+gap$T <- gsub("^.*? ","",gap$TIME)
+gap$DTE <- gsub(" 0:00:00","",gap$ACT_DATE)
+time <- as.data.frame(str_split_fixed(gap$T,":",n=3))
+time <- dplyr::rename(time, Hour = V1, Minute = V2, Second = V3)
+
+time$Hour <- as.numeric(as.character(time$Hour))
+time$Minute <- as.numeric(as.character(time$Minute))
+time$Second <- as.numeric(as.character(time$Second))
+
+gap <- cbind(gap,time)
+rm(time)
+gap$DTE <- as.Date(gap$DTE,"%m/%d/%Y")
+
+gap <- gap[gap$Hour >=8,]
+gap <- gap %>%
+  arrange(Second) %>% 
+  arrange(Minute) %>%
+  arrange(Hour) %>%
+  arrange(DTE) %>%
+  arrange(EMPNUM) %>%
+  mutate(Minute = Minute + Second/60) %>%
+  mutate(Hour.Min = Hour + Minute/60) %>%
+  group_by(EMPNUM,DTE) %>%
+  mutate(Diff = Hour.Min - lag(Hour.Min)) %>%
+  mutate(Diff_Minutes = Diff *60)
+
+ARMASTER <- ARMASTER[ARMASTER$SUB %in% c("HIR","VERF","AWG","GAR","AR","SWAT"),]
+
+ARMASTER <- ARMASTER %>%
+  select(EMPNUM,A.R,manager,DEPT,off)
+
+gap <- left_join(gap,ARMASTER,by="EMPNUM")
+
+gap <- gap[!is.na(gap$manager),]
+gap <- gap[!gap$CODE_2 %in% c("CM","A3P","ATY"),]
+gap <- gap[!gap$CODE_3 %in% c("PRM","CMP"),]
+
+gap <- rename(gap,Collector=A.R,Manager=manager,Department=DEPT,Office=off)
+gap$Office <- as.factor(gap$Office)
+gap$Month <- format(gap$DTE,format="%B %Y")
+gap$Office <- plyr::revalue(gap$Office,c("K"="Knoxville","C"="Columbus","B"="Columbus2","W"="Westlake","S"="Schuerger"))
+gap <- gap[!gap$Office %in% c("AGY","ALL"),]
+gap$Diff_Minutes[is.na(gap$Diff_Minutes)] <- 0
+gap <- gap[!gap$Manager %in% "",]
+gap$Manager <- as.factor(gap$Manager)
+gap$Department <- as.factor(gap$Department)
+gap$Month <- as.factor(gap$Month)
+
+EMP_GAP_Day <- gap %>%
+  group_by(Collector,Manager,DTE,Department,Office) %>%
+  summarise(More_Than_5_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=5)>3,sum(Diff_Minutes>=5),0)),
+            More_Than_15 = as.numeric(ifelse(sum(Diff_Minutes>=15)>3,sum(Diff_Minutes>=15),0)),
+            Hours_Of_Gap_Time = ifelse(round(sum(Diff_Minutes)/60-1.5,2)>=0,round(sum(Diff_Minutes)/60-1.5,2),0))
+EMP_GAP_MONTH<- gap %>%
+  group_by(Collector,Manager,Month,Department,Office) %>%
+  summarise(More_Than_5_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=5)>3,sum(Diff_Minutes>=5),0)),
+            More_Than_15_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=15)>3,sum(Diff_Minutes>=15),0)),
+            Hours_Of_Gap_Time = ifelse(round(sum(Diff_Minutes)/60-1.5,2)>0,
+                                       round(sum(Diff_Minutes)/60-1.5,2),
+                                       0))
+MGR_GAP_Day <- gap %>%
+  group_by(Manager,DTE,Department,Office) %>%
+  summarise(More_Than_5_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=5)>3,sum(Diff_Minutes>=5),0)),
+            More_Than_15_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=15)>3,sum(Diff_Minutes>=15),0)),
+            Hours_Of_Gap_Time = ifelse(round(sum(Diff_Minutes)/60-1.5,2)>=0,
+                                       round(sum(Diff_Minutes)/60-1.5,2),
+                                       0))
+
+MGR_GAP_MONTH<- gap %>%
+  group_by(Manager,Month,Department,Office) %>%
+  summarise(More_Than_5_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=5)>3,sum(Diff_Minutes>=5),0)),
+            More_Than_15_Minutes = as.numeric(ifelse(sum(Diff_Minutes>=15)>3,sum(Diff_Minutes>=15),0)),
+            Hours_Of_Gap_Time = ifelse(round(sum(Diff_Minutes)/60 - (n_distinct(DTE)*1.5),2)>0,
+                                       round(sum(Diff_Minutes)/60 - (n_distinct(DTE)*1.5),2),
+                                       0))
+rm(BG)
+
+
+MGR_GAP_MONTH <- plyr::rename(MGR_GAP_MONTH, c("More_Than_5_Minutes"="5 Minute Gaps","More_Than_15_Minutes"="15 Minute Gaps","Hours_Of_Gap_Time"="Hours of Gap Time"))
+MGR_GAP_Day <- plyr::rename(MGR_GAP_Day, c("More_Than_5_Minutes"="5 Minute Gaps","More_Than_15_Minutes"="15 Minute Gaps","DTE"="Date","Hours_Of_Gap_Time"="Hours of Gap Time"))
+EMP_GAP_MONTH <- plyr::rename(EMP_GAP_MONTH, c("More_Than_5_Minutes"="5 Minute Gaps","More_Than_15_Minutes"="15 Minute Gaps","Hours_Of_Gap_Time"="Hours of Gap Time"))
+EMP_GAP_Day <- plyr::rename(EMP_GAP_Day, c("More_Than_5_Minutes"="5 Minute Gaps","More_Than_15"="15 Minute Gaps","DTE"="Date","Hours_Of_Gap_Time"="Hours of Gap Time"))
+
+RESDATA <- read.csv("//Knx3it/edopsmgmt/Reports/Res Referrals & Rankings/RES Database/RESDATA.csv",
+                    stringsAsFactors=FALSE)
+
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",
+                     header=TRUE,stringsAsFactors = FALSE)
+
+RESDATA$Which.MGR <- factor(RESDATA$Which.MGR)
+
+RESDATA$Which.MGR <- plyr::revalue(RESDATA$Which.MGR,c("HOUSE"=900))
+
+RESDATA$Which.MGR <- as.character(RESDATA$Which.MGR)  
+RESDATA$Which.MGR <- as.numeric(RESDATA$Which.MGR)
+
+ARMASTER <- ARMASTER %>%
+  select(EMPNUM, A.R, desk, manager, DEPT, off, SUB)
+
+ARMASTER <- rename(ARMASTER, Credit.AR = desk)
+
+RESDATA <- left_join(RESDATA,ARMASTER,by="Credit.AR")
+rm(ARMASTER)
+
+res <- RESDATA %>%
+  group_by(off, DEPT, manager, A.R, Month) %>%
+  summarize(Good = sum(Good.or.Bad == 1),
+            Bad = sum(Good.or.Bad == 0),
+            Death = sum(Condition == "DEATH" & Good.or.Bad == 1),
+            Incarceration = sum(Condition == "INCR" & Good.or.Bad == 1),
+            Disability = sum(Condition == "DIS" & Good.or.Bad == 1))
+
+res$manager[res$manager %in% ""] <- "GAVIN, THOMAS"
+res$A.R[res$A.R %in% ""] <- "Non in AR Master"
+
+res$off[res$off %in% ""] <- "HOUSE"
+res$DEPT[res$DEPT %in% ""] <- "ADM"
+
+
+res$Month <- as.Date(res$Month,"%m/%d/%Y")
+res$Month <- format(res$Month, "%B %Y")
+
+res <- rename(res, Office = off, Department = DEPT, Manager = manager, Collector = A.R)
+
+res$Office <- as.factor(res$Office)
+res$Department <- as.factor(res$Department)
+res$Manager <- as.factor(res$Manager)
+res$Collector <- as.factor(res$Collector)
+res$Month <- as.factor(res$Month)
+
+res$Office <- plyr::revalue(res$Office, c("B"="Columbus 2","C"="Columbus","K"="Knoxville",
+                                          "S"="Schuerger","W"="Westlake","ALL"="HOUSE"))
+
+
+res$Month <- factor(res$Month,levels=c("October 2016","November 2016", "December 2016","January 2017","February 2017","March 2017",
+                                       "April 2017","May 2017","June 2017","July 2017", "August 2017",'September 2017',
+                                       'October 2017'))
+
+
+RGR <- read.csv("//KNX3IT/AWG Management/RGR/RGR Database.csv", stringsAsFactors=FALSE)
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
+
+RGR$CRAR[is.na(RGR$CRAR)] <- 811
+RGR$CRAR[RGR$CRAR>=800] <- 811
+
+ARMASTER <- ARMASTER %>%
+  select(A.R, desk, manager, DEPT, off)
+
+ARMASTER <- rename(ARMASTER, CRAR = desk, Collector = A.R, Manager = manager, Department = DEPT, Office = off)
+ARMASTER$CRAR <- as.character(ARMASTER$CRAR)
+
+RGR <- left_join(RGR,ARMASTER,by="CRAR")
+rm(ARMASTER)
+
+RGR$Month <- as.Date(RGR$Month,"%m/%d/%Y")
+RGR$Month <- format(RGR$Month,"%B %Y")
+
+RGR$Month <- as.factor(RGR$Month)
+RGR$Collector <- as.factor(RGR$Collector)
+RGR$Vendor.File. <- as.factor(RGR$Vendor.File.)
+RGR$Manager <- as.factor(RGR$Manager)
+RGR$Department <- as.factor(RGR$Department)
+RGR$Office <- as.factor(RGR$Office)
+
+RGR$Office <- plyr::revalue(RGR$Office,c("K"="Knoxville","B"="Columbus 2","C"="Columbus","S"="Schuerger","W"="Westlake"))
+RGR$Manager <- as.character(RGR$Manager)
+RGR$Manager[RGR$Manager %in% ""] <- "NLE Manager"
+RGR$Manager <- as.factor(RGR$Manager)
+
+RGR$Collector <- as.character(RGR$Collector)
+RGR$Collector[RGR$Collector %in% ""] <- "NLE Collector"
+RGR$Collector <- as.factor(RGR$Collector)
+
+RGR$Office[is.na(RGR$Office)] <- "Knoxville"
+RGR$Department[is.na(RGR$Department)] <- "AWG"
+RGR$Manager[is.na(RGR$Manager)] <- "NLE Manager"
+RGR$Collector[is.na(RGR$Collector)] <- "NLE Collector"
+
+RGR$Month <- factor(RGR$Month,levels=c("October 2016","November 2016", "December 2016","January 2017","February 2017","March 2017",
+                                       "April 2017","May 2017","June 2017","July 2017", "August 2017",'September 2017',
+                                       'October 2017'))
+
+NINE <- read.csv("//KNX3IT/AWG Management/RGR/Activation Needs Dashboard/Data/NINE.csv", stringsAsFactors=FALSE)
+
+NINE <- select(NINE,ED_ACCT_ACT_DATE,CM_FILENO)
+NINE <- rename(NINE,Debtor=CM_FILENO)
+RGR <- left_join(RGR,NINE,by="Debtor")
+RGR$ED_ACCT_ACT_DATE <- as.Date(RGR$ED_ACCT_ACT_DATE,"%m/%d/%Y")
+rm(NINE)
+RGR$ED_ACCT_ACT_DATE[is.na(RGR$ED_ACCT_ACT_DATE)] <- "2000-01-01" 
+
+BIFSIF <- read.csv("//Knx3fs01/ED_BA_GROUP/Lowhorn/BIFSIF.csv", stringsAsFactors=FALSE)
+ARMASTER <- read.csv("//knx1fs01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv", stringsAsFactors=FALSE)
+ARMASTER <- ARMASTER %>%
+  select(EMPNUM,A.R,manager,DEPT,off) %>%
+  rename(EMPL = EMPNUM, Collector = A.R, Manager = manager, Department = DEPT, Office = off)
+BIFSIF <- left_join(BIFSIF,ARMASTER,by="EMPL")
+rm(ARMASTER)
+BIFSIF$Month <- as.Date(BIFSIF$Month, "%m/%d/%Y")
+BIFSIF$Month <- format(BIFSIF$Month, "%B %Y")
+BIFSIF$Collector[is.na(BIFSIF$Collector)] <- "NLE"
+BIFSIF$Manager[is.na(BIFSIF$Manager)] <- "NLE"
+BIFSIF$Department[is.na(BIFSIF$Department)] <- "NLE"
+BIFSIF$Office[is.na(BIFSIF$Office)] <- "Knoxville"
+BIFSIF$Month <- as.factor(BIFSIF$Month)
+BIFSIF$Program <- as.factor(BIFSIF$Program)
+BIFSIF$Collector <- as.factor(BIFSIF$Collector)
+BIFSIF$Manager <- as.factor(BIFSIF$Manager)
+BIFSIF$Department <- as.factor(BIFSIF$Department)
+BIFSIF$Office <- factor(BIFSIF$Office)
+BIFSIF$Office <- plyr::revalue(BIFSIF$Office,c("K"="Knoxville","C"="Columbus","B"="Columbus 2","W"="Westlake","S"="Schuerger","AGY"="Knoxville","ALL"="Knoxville"))
+
+A <- BIFSIF %>%
+  group_by(Office, Department, Manager, Collector, Month) %>%
+  summarize(Total_BIF_SIF = n())
+B <- RGR %>%
+  group_by(Office, Department, Manager, Collector, Month) %>%
+  summarize(Total_RGR = n())
+C <- res %>%
+  group_by(Office, Department, Manager, Collector, Month) %>%
+  summarize(Total_Res = sum(Good))
+
+D <- full_join(A,B,by=c("Office","Department","Manager","Collector","Month"))
+E <- full_join(D,C,by=c("Office","Department","Manager","Collector","Month"))
+E[is.na(E)] <- 0
+E <- E %>%
+  mutate(Total = Total_BIF_SIF + Total_RGR + Total_Res)
+E <- E[!E$Office %in% c("0","HOUSE"),]
+
+
+
+RESDATA <- read.csv("//Knx3it/edopsmgmt/Reports/Res Referrals & Rankings/RES Database/RESDATA.csv",
+                    stringsAsFactors=FALSE)
+
+RESDATA$Month <- as.Date(RESDATA$Month,"%m/%d/%Y")
+RESDATA$Month <- format(RESDATA$Month,"%B %Y")
+ARMASTER <- read.csv("//KNX1FS01/ED Reporting/Lowhorn Big Data/Golden Rule Data/ARMASTER.csv",header=TRUE,stringsAsFactors = FALSE)
+ARMASTER <- ARMASTER[ARMASTER$SUB %in% c("HIR","VERF","AWG","GAR","AR","SWAT"),]
+ARMASTER <- ARMASTER %>%
+  select(EMPNUM,A.R,manager,DEPT,off)
+
+ARMASTER$A.R <- as.factor(ARMASTER$A.R)
+
+saveRDS(activity,'//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
+saveRDS(all,'//KNX3IT/AWG Management/KPI Data/Input/all.rds')
+saveRDS(allawg,'//KNX3IT/AWG Management/KPI Data/Input/allawg.rds')
+saveRDS(ARMASTER,'//KNX3IT/AWG Management/KPI Data/Input/ARMASTER.rds')
+saveRDS(BIFSIF,'//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+saveRDS(CDay,'//KNX3IT/AWG Management/KPI Data/Input/CDay.rds')
+saveRDS(CMonth,'//KNX3IT/AWG Management/KPI Data/Input/CMonth.rds')
+saveRDS(CODE,'//KNX3IT/AWG Management/KPI Data/Input/CODE.rds')
+saveRDS(DeptDay,'//KNX3IT/AWG Management/KPI Data/Input/DeptDay.rds')
+saveRDS(DeptMonth,'//KNX3IT/AWG Management/KPI Data/Input/DeptMonth.rds')
+saveRDS(df,'//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+saveRDS(docs,'//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
+saveRDS(E,'//KNX3IT/AWG Management/KPI Data/Input/E.rds')
+saveRDS(EMP_GAP_Day,'//KNX3IT/AWG Management/KPI Data/Input/EMP_GAP_Day.rds')
+saveRDS(EMP_GAP_MONTH,'//KNX3IT/AWG Management/KPI Data/Input/EMP_GAP_MONTH.rds')
+saveRDS(gap,'//KNX3IT/AWG Management/KPI Data/Input/gap.rds')
+saveRDS(hein,'//KNX3IT/AWG Management/KPI Data/Input/hein.rds')
+saveRDS(MDay,'//KNX3IT/AWG Management/KPI Data/Input/MDay.rds')
+saveRDS(MGR_GAP_Day,'//KNX3IT/AWG Management/KPI Data/Input/MGR_GAP_Day.rds')
+saveRDS(MGR_GAP_MONTH,'//KNX3IT/AWG Management/KPI Data/Input/MGR_GAP_MONTH.rds')
+saveRDS(MMonth,'//KNX3IT/AWG Management/KPI Data/Input/MMonth.rds')
+saveRDS(ODay,'//KNX3IT/AWG Management/KPI Data/Input/ODay.rds')
+saveRDS(OMonth,'//KNX3IT/AWG Management/KPI Data/Input/OMonth.rds')
+saveRDS(pf,'//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
+saveRDS(res,'//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+saveRDS(RESDATA,'//KNX3IT/AWG Management/KPI Data/Input/RESDATA.rds')
+saveRDS(RGR,'//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+saveRDS(tiff,'//KNX3IT/AWG Management/KPI Data/Input/tiff.rds')
+saveRDS(Tracker,'//KNX3IT/AWG Management/KPI Data/Input/Tracker.rds')
+saveRDS(type,'//KNX3IT/AWG Management/KPI Data/Input/type.rds')
+saveRDS(typeawg,'//KNX3IT/AWG Management/KPI Data/Input/typeawg.rds')
