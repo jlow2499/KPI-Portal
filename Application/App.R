@@ -1,14 +1,24 @@
+library(shinyjs)
+
 currmonth = format(Sys.Date()-1,"%B %Y")
 prevmonth = format(Sys.Date()-30,"%B %Y")
 
+Tracker <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/Tracker.rds')
+ARMASTER <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/ARMASTER.rds')
+docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
+df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+res <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+tiff <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/tiff.rds')
+
+
 x <- c()
 if(weekdays(Sys.Date())=="Monday"){
-  x <- 3
+  3
 }else{
-  x <- 1
+  1
 }
 
-tiff$Month <- factor(tiff$Month, levels=c("January 2017","December 2016","November 2016","October 2016","September 2016","August 2016",
+tiff$Month <- factor(tiff$Month, levels=c('October 2017', 'September 2017', 'August 2017',"July 2017","June 2017","May 2017","April 2017","March 2017","February 2017","January 2017","December 2016","November 2016","October 2016","September 2016","August 2016",
                                           "July 2016","June 2016"))
 library(shiny)
 library(shinydashboard)
@@ -25,21 +35,35 @@ sidebar <- dashboardSidebar(
     menuItem("Call Detail Report",tabName="calldetail",icon=icon("phone"),
              menuSubItem("Call Detail report",tabName="calls",icon=icon("table")),
              menuSubItem("Download Tool",tabName="DL2",icon=icon("cloud-download"))),
+    menuItem("Gap Report", tabName="gap",icon=icon("chain-broken"),
+             menuSubItem("Gap Report Table",tabName="gaptable",icon=icon("table")),
+             menuSubItem("Download Tool",tabName="gapdownload",icon=icon("cloud-download"))),
     menuItem("Rehab Report",tabName="rehab",icon=icon("fighter-jet"),
              menuSubItem("Rehab Report",tabName="RHB",icon=icon("table")),
              menuSubItem("RAL Success by Bucket",tabName="RAL",icon=icon("table")),
              menuSubItem("Download Tool",tabName="DL3",icon=icon("cloud-download"))),
+    menuItem("Referral Report", tabName="REF", icon=icon("exchange"),
+             menuSubItem("AR Referral Report",tabName="AR",icon=icon("ambulance")),
+             menuSubItem("RGR Referral Report",tabName="AWG",icon=icon("money")),
+             menuSubItem("BIF/SIF Tracker",tabName="BIF",icon=icon("credit-card")),
+             menuSubItem('Comprehensive Report',"REFREPORT",icon=icon("trophy")),
+             menuSubItem("Download Tool","REFDWN",icon=icon("cloud-download"))),
     menuItem("KPI Forms",tabName="form",icon=icon("list-alt"),
              menuSubItem("Printable Form",tabName="form1",icon=icon("print")),
              menuSubItem("Collector Graph",tabName="dygraph",icon=icon("line-chart"))),
     menuItem("Executive KPI Report",tabName="Gentry",icon=icon("briefcase"),
              menuSubItem("Executive KPI Table",tabName="exec",icon=icon("list-alt")))
+  #  fluidRow(column(width=1),
+   # actionButton("Refresh","Refresh Page"))
+        
     
     
   )
 )
 
 body <- dashboardBody(
+  shinyjs::useShinyjs(),
+  div(id="form",
   tabItems(
     tabItem(tabName="KPI",h1("Powered By:"),img(src='Capture.png'),
             h2(textOutput("counter"))),
@@ -59,7 +83,7 @@ body <- dashboardBody(
             column(width=4),column(width=4,
                                    box(width=8,height=150,dateInput("days",
                                                                     label="Date",
-                                                                    value=(Sys.Date()-x),
+                                                                    value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),
                                                                     min="2015-12-31",
                                                                     format="m/d/yyyy"),
                                        downloadButton('downloadData', 'Download Daily Data')))),
@@ -77,14 +101,35 @@ body <- dashboardBody(
       DT::dataTableOutput("dt3")
     ),
     
+    tabItem(tabName = "gaptable",fluidRow(
+            column(width=4,selectInput("gaptime","Timeframe",choices=c('Monthly',"Daily"))),
+            column(width=4,uiOutput("gapUI")),
+            column(width=4,selectInput("gapgroup","Group",choices=c("Manager","Collector")))
+    ),
+    dataTableOutput("gaptable")
+    ),
+    
+    tabItem(tabName="gapdownload",
+            column(width=4),column(width=4,
+                                   box(width=8,height=150,dateInput("days2",
+                                                                    label="Date",
+                                                                    value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){
+                                                                      3
+                                                                    }else{
+                                                                      1
+                                                                    }),
+                                                                    min="2015-12-31",
+                                                                    format="m/d/yyyy"),
+                                       downloadButton('gapdownloaddata', 'Download Data')))),
+    
     
     
     
     tabItem(tabName="DL2",
             column(width=4),column(width=4,
-                                   box(width=8,height=150,dateInput("days2",
+                                   box(width=8,height=150,dateInput("gapday2",
                                                                     label="Date",
-                                                                    value=(Sys.Date()-x),
+                                                                    value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),
                                                                     min="2015-12-31",
                                                                     format="m/d/yyyy"),
                                        downloadButton('downloadData2', 'Download Data')))),
@@ -128,6 +173,73 @@ body <- dashboardBody(
                                                                       selected=prevmonth),
                                        downloadButton('downloadData3', 'Download Data')))),
     
+    tabItem(tabName="AR",
+            column(width=2),
+            column(width=4,
+                   box(width=8, selectInput("RESGROUP","Group",
+                                                       choices=c("Office","Department","Manager","Collector")))),
+            column(width=4,box(width=8,selectInput("RESMONTH","Month",choices=levels(res$Month),selected=currmonth))),
+            
+            
+            
+            DT::dataTableOutput("restable")
+            
+            ),
+    
+    tabItem(tabName="AWG",
+            column(width=2),
+            column(width=4,
+                   box(width=8, selectInput("AWGGROUP","Group",
+                                            choices=c("Office","Department","Manager","Collector")))),
+            column(width=4,box(width=8,selectInput("AWGMONTH","Month",choices=levels(res$Month),selected=currmonth))),
+            
+            
+            
+            DT::dataTableOutput("awgtable")
+            
+    ),
+    
+    tabItem(tabName="BIF",
+            column(width=2),
+            column(width=4,
+                   box(width=8, selectInput("BIFGROUP","Group",
+                                            choices=c("Office","Department","Manager","Collector")))),
+            column(width=4,box(width=8,selectInput("BIFMONTH","Month",choices=levels(res$Month),selected=currmonth))),
+            
+            
+            
+            DT::dataTableOutput("biftable")
+            
+    ),
+    
+    tabItem(tabName="REFREPORT",
+            column(width=2),
+            column(width=4,
+                   box(width=8, selectInput("REFREPORTGROUP","Group",
+                                            choices=c("Office","Department","Manager","Collector")))),
+            column(width=4,box(width=8,selectInput("REFREPORTMONTH","Month",choices=levels(res$Month),selected=currmonth))),
+            
+            
+            
+            DT::dataTableOutput("comptable")
+            
+    ),
+    
+    tabItem(tabName="REFDWN",
+            fluidRow(column(width=2),
+            column(width=4,
+                   box(width=8, selectInput("DATASRC","Data Source",
+                                            choices=c("Res Report","RGR Report","BIF/SIF Tracker")))),
+            column(width=4,box(width=8,selectInput("DATADWNMONTH","Download What Month",choices=levels(res$Month),selected=currmonth))),column(width=2)),
+            fluidRow(column(width=4),
+            box(width=3,downloadButton('REFDWN', 'Download Data')))
+            
+            
+            
+            ),
+    
+    
+    
     
     tabItem(tabName="form1",
             fluidRow(column(width=4),column(width=4,            
@@ -141,12 +253,12 @@ body <- dashboardBody(
             column(width=1),
             column(width=4,
                    selectInput("AR",h3("Collector"),
-                               choices=levels(ARMASTER$A.R),
-                               selected="PLUNK, STEVE")),
+                               choices=levels(ARMASTER$A.R),selected="PLUNK, STEVE"
+                               )),
             column(width=3,
                    selectInput("Month5","Rehab Tracker Month",
                                choices=levels(docs$SetupMonth),
-                               selected="January 2017")
+                               selected="October 2017")
                    
             )),
             
@@ -197,19 +309,38 @@ body <- dashboardBody(
     )
     
     
-  ))
+  )))
 
 
 ui <- dashboardPage(
+
+
   dashboardHeader(title = "KPI Portal"
+              
                   # dropdownMenu(type="notifications",
                   #              notificationItem(text=textOutput("counter"),icon=icon("users"))
   ),
+  skin="blue",
   sidebar,
   body
 )
 
-server <- function(input, output) {
+server <- function(input, output,session) {
+  
+ # observeEvent(input$Refresh, {
+#    shinyjs::reset("form")
+#  })
+  
+  
+  
+  
+  output$gapUI <- renderUI({
+    if(input$gaptime=="Monthly"){    
+      selectInput("gapmon","Month",choices=c("August 2016","September 2016","October 2016","November 2016","December 2016","January 2017","February 2017","March 2017","April 2017","May 2017","June 2017","July 2017",'August 2017','September 2017','October 2017'),selected=currmonth)
+    }else{
+      dateInput("gapday","Date",value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),min="2015-12-31",format="m/d/yyyy")
+    }
+  })
   
   
   
@@ -218,11 +349,11 @@ server <- function(input, output) {
     if(input$time == "Monthly"){
       
       selectInput("Month","Month",
-                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
+                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017","February 2017","March 2017","April 2017","May 2017","June 2017","July 2017",'August 2017','September 2017','October 2017'),
                   selected=currmonth)}else{
                     dateInput("Day",
                               label="Date",
-                              value=(Sys.Date()-x),
+                              value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),
                               min="2015-12-31",
                               format="m/d/yyyy")
                     
@@ -234,11 +365,11 @@ server <- function(input, output) {
     if(input$time3 == "Monthly"){
       
       selectInput("Month3","Month",
-                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
+                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017","February 2017","March 2017","April 2017","May 2017","June 2017","July 2017",'August 2017','September 2017','October 2017'),
                   selected=currmonth)}else{
                     dateInput("Day3",
                               label="Date",
-                              value=(Sys.Date()-x),
+                              value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),
                               min="2015-12-31",
                               format="m/d/yyyy")
                     
@@ -256,11 +387,11 @@ server <- function(input, output) {
     if(input$time2 == "Monthly"){
       
       selectInput(inputId="Month2","Month",
-                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017"),
+                  choices=c("August 2016" ,"September 2016","October 2016","November 2016","December 2016","January 2017","February 2017","March 2017","April 2017","May 2017","June 2017","July 2017",'August 2017','September 2017','October 2017'),
                   selected=currmonth)}else{
                     dateInput("Day2",
                               label="Date",
-                              value=(Sys.Date()-x),
+                              value=(Sys.Date()-if(weekdays(Sys.Date())=="Monday"){   3 }else{   1 }),
                               min="2015-12-31",
                               format="m/d/yyyy")
                     
@@ -269,6 +400,7 @@ server <- function(input, output) {
   
   
   data <- reactive({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Date == as.character(input$days))
     a <- a[,-which(names(a)%in%c("Tracker","Credit","ARNUM"))]
     a
@@ -284,6 +416,7 @@ server <- function(input, output) {
   )
   
   acct <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$days2),]
     a
     
@@ -300,6 +433,7 @@ server <- function(input, output) {
   
   
   Track <- reactive({
+    Tracker <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/Tracker.rds')
     a <- Tracker[Tracker$SetupMonth == input$Month6,]
     a
   })
@@ -315,6 +449,7 @@ server <- function(input, output) {
   )
   
   pcmon <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month2,]
     b <- a %>%
       group_by(Collector,Month) %>%
@@ -327,6 +462,7 @@ server <- function(input, output) {
   })
   
   pcday <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day2),]
     b <- a %>%
       group_by(Collector,Date) %>%
@@ -348,6 +484,7 @@ server <- function(input, output) {
   
   
   conformmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Month == input$Month2)
     e <- a %>%
       group_by(Collector, Month) %>%
@@ -359,6 +496,7 @@ server <- function(input, output) {
   })
   
   conformday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Date == as.character(input$Day2))
     e <- a %>%
       group_by(Collector, Date) %>%
@@ -378,6 +516,7 @@ server <- function(input, output) {
   
   
   rhvmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Month == input$Month2)
     e <- a %>%
       group_by(Collector, Month) %>%
@@ -389,6 +528,7 @@ server <- function(input, output) {
   })
   
   rhvday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Date == as.character(input$Day2))
     e <- a %>%
       group_by(Collector, Date) %>%
@@ -407,6 +547,7 @@ server <- function(input, output) {
   })
   
   ccmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Month == input$Month2)
     e <- a %>%
       group_by(Collector, Month) %>%
@@ -421,6 +562,7 @@ server <- function(input, output) {
   })
   
   ccday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Date == as.character(input$Day2))
     e <- a %>%
       group_by(Collector, Date) %>%
@@ -445,6 +587,7 @@ server <- function(input, output) {
   
   
   awmon <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month2,]
     b <- a %>%
       group_by(Collector,Month) %>%
@@ -457,6 +600,7 @@ server <- function(input, output) {
   })
   
   awday <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day2),]
     b <- a %>%
       group_by(Collector,Date) %>%
@@ -476,6 +620,7 @@ server <- function(input, output) {
   })
   
   mlmon <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month2,]
     b <- a %>%
       group_by(Collector,Month) %>%
@@ -488,6 +633,7 @@ server <- function(input, output) {
   })
   
   mlday <- reactive({
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day2),]
     b <- a %>%
       group_by(Collector,Date) %>%
@@ -509,6 +655,7 @@ server <- function(input, output) {
   
   
   rhbsetup <- reactive ({
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- subset(docs,SetupMonth == input$Month5)
     b <- a[a$Collector == input$AR,]
     g <- b$Setups
@@ -520,6 +667,7 @@ server <- function(input, output) {
   })
   
   rhbicdoc <- reactive ({
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- subset(docs,SetupMonth == input$Month5)
     b <- a[a$Collector == input$AR,]
     g <- b$IC_Percent
@@ -531,6 +679,7 @@ server <- function(input, output) {
   })
   
   rhbral <- reactive ({
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- subset(docs,SetupMonth == input$Month5)
     b <- a[a$Collector == input$AR,]
     g <- b$RAL_Percent
@@ -542,6 +691,7 @@ server <- function(input, output) {
   })
   
   rhbfund <- reactive ({
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- subset(docs,SetupMonth == input$Month5)
     b <- a[a$Collector == input$AR,]
     g <- b$Funded_Percent
@@ -562,14 +712,26 @@ server <- function(input, output) {
   
   
   output$codes <- renderDataTable({
-    datatable(CODE,extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    CODE <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/CODE.rds')
+    datatable(CODE,extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
               options = list(
                 searching=TRUE,
-                autoWidth=TRUE
+                autoWidth=TRUE,
+                keys=TRUE,
+                scroller=T,
+                scrollY=450,
+                rowReorder=T,
+                colReorder = TRUE,
+                paging=T,
+                dom = 'Bfrtip',
+                scrollX=T,
+                buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
               ))
   })
   
   manday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    MDay <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/MDay.rds')
     a <- subset(df,Date == as.character(input$Day))
     e <- a %>%
       group_by(Manager, Office, Department, Date) %>%
@@ -589,6 +751,8 @@ server <- function(input, output) {
   })
   
   manmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    MMonth <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/MMonth.rds')
     a <- subset(df,Month == input$Month)
     e <- a %>%
       group_by(Manager, Office, Department, Month) %>%
@@ -608,6 +772,8 @@ server <- function(input, output) {
   })
   
   colmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    CMonth <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/CMonth.rds')
     a <- subset(df,Month == input$Month)
     e <- a %>%
       group_by(Collector, Manager, Office, Department, Month) %>%
@@ -627,6 +793,8 @@ server <- function(input, output) {
   })
   
   colday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    CDay <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/CDay.rds')
     a <- subset(df,Date == as.character(input$Day))
     e <- a %>%
       group_by(Collector, Manager, Office, Department, Date) %>%
@@ -646,6 +814,8 @@ server <- function(input, output) {
   })
   
   depday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    DeptDay <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/DeptDay.rds')
     a <- subset(df,Date == as.character(input$Day))
     e <- a %>%
       group_by(Department, Office, Date) %>%
@@ -665,6 +835,8 @@ server <- function(input, output) {
   })
   
   depmon <- reactive ({
+    DeptMonth <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/DeptMonth.rds')
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
     a <- subset(df,Month == input$Month)
     e <- a %>%
       group_by(Department, Office, Month) %>%
@@ -683,6 +855,8 @@ server <- function(input, output) {
   })
   
   offday <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    ODay <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/ODay.rds')
     a <- subset(df,Date == as.character(input$Day))
     e <- a %>%
       group_by(Office, Date) %>%
@@ -702,6 +876,8 @@ server <- function(input, output) {
   })
   
   offmon <- reactive ({
+    df <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/df.rds')
+    OMonth <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/OMonth.rds')
     a <- subset(df,Month == input$Month)
     e <- a %>%
       group_by(Office, Month) %>%
@@ -722,6 +898,7 @@ server <- function(input, output) {
   })
   
   pfoffday <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Office, Date) %>%
@@ -748,6 +925,7 @@ server <- function(input, output) {
   })
   
   pfoffmon <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Office, Month) %>%
@@ -774,6 +952,7 @@ server <- function(input, output) {
   })
   
   pfdepmon <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Department, Office, Month) %>%
@@ -800,6 +979,7 @@ server <- function(input, output) {
   })
   
   pfdepday <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Department, Office, Date) %>%
@@ -826,6 +1006,7 @@ server <- function(input, output) {
   })
   
   pfmanday <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Manager,Department, Office,Date) %>%
@@ -852,6 +1033,7 @@ server <- function(input, output) {
   })
   
   pfmanmon <- reactive ({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Manager,Department, Office, Month) %>%
@@ -878,6 +1060,7 @@ server <- function(input, output) {
   })
   
   programmonth <- reactive({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Collector,Manager,Department, Office, Month) %>%
@@ -903,6 +1086,7 @@ server <- function(input, output) {
   })
   
   programday <- reactive({
+    pf <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/pf.rds')
     a <- pf
     e <- a %>%
       group_by(Collector,Manager,Department, Office,Date) %>%
@@ -929,7 +1113,7 @@ server <- function(input, output) {
   
   
   calloffmon <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month3,]
     
     b <- a %>%
@@ -957,7 +1141,7 @@ server <- function(input, output) {
   })
   
   calloffday <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day3),]
     
     
@@ -989,7 +1173,7 @@ server <- function(input, output) {
   
   
   calldeptmon <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month3,]
     
     
@@ -1018,7 +1202,7 @@ server <- function(input, output) {
   })
   
   calldeptday <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day3),]
     
     
@@ -1048,7 +1232,7 @@ server <- function(input, output) {
   })
   
   callmgrmon <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month3,]
     
     
@@ -1077,7 +1261,7 @@ server <- function(input, output) {
   })
   
   callmgrday <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day3),]
     
     
@@ -1107,7 +1291,7 @@ server <- function(input, output) {
   })
   
   callcolmon <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Month == input$Month3,]
     
     
@@ -1136,7 +1320,7 @@ server <- function(input, output) {
   })
   
   callcolday <- reactive({
-    
+    activity <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/activity.rds')
     a <- activity[activity$Date == as.character(input$Day3),]
     
     
@@ -1165,29 +1349,7 @@ server <- function(input, output) {
     
   })
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   lo <- reactive({
     paste(input$type,input$time,input$group)
   })
@@ -1240,21 +1402,20 @@ server <- function(input, output) {
   
   
   output$dt <- DT::renderDataTable({
-    table <- datatable(dt(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    table <- datatable(dt(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
                        options = list(
                          searching=TRUE,
                          autoWidth=TRUE,
-                         paging=FALSE,
-                         
-                         "sDom" = 'T<"clear">lfrtip',
-                         "oTableTools" = list(
-                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                           "aButtons" = list(
-                             "copy",
-                             "print",
-                             list("sExtends" = "collection",
-                                  "sButtonText" = "Save",
-                                  "aButtons" = c("csv","xls"))))))
+                         keys=TRUE,
+                         scroller=T,
+                         scrollY=450,
+                         rowReorder=T,
+                         colReorder = TRUE,
+                         paging=T,
+                         dom = 'Bfrtip',
+                         scrollX=T,
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+                       ))
     table <- if(input$type == "Collections"){
       
       table <- formatStyle(table,
@@ -1282,21 +1443,20 @@ server <- function(input, output) {
   })  
   
   output$dt3 <- DT::renderDataTable({
-    table <- datatable(dt3(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    table <- datatable(dt3(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
                        options = list(
                          searching=TRUE,
                          autoWidth=TRUE,
-                         paging=FALSE,
-                         
-                         "sDom" = 'T<"clear">lfrtip',
-                         "oTableTools" = list(
-                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                           "aButtons" = list(
-                             "copy",
-                             "print",
-                             list("sExtends" = "collection",
-                                  "sButtonText" = "Save",
-                                  "aButtons" = c("csv","xls")))))) %>%
+                         keys=TRUE,
+                         scroller=T,
+                         scrollY=450,
+                         rowReorder=T,
+                         colReorder = TRUE,
+                         paging=T,
+                         dom = 'Bfrtip',
+                         scrollX=T,
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+                       )) %>%
       formatStyle(
         'Message Rate',
         background = styleColorBar(dt3()$"Message Rate", 'steelblue'),
@@ -1327,7 +1487,7 @@ server <- function(input, output) {
   })
   
   rhboffmon <- reactive({
-    
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- docs[docs$SetupMonth == input$Month4,]
     b <- a %>%
       group_by(SetupMonth, Office) %>%
@@ -1354,7 +1514,7 @@ server <- function(input, output) {
   })
   
   rhbdeptmon <- reactive({
-    
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- docs[docs$SetupMonth == input$Month4,]
     b <- a %>%
       group_by(SetupMonth, Office, Department) %>%
@@ -1381,7 +1541,7 @@ server <- function(input, output) {
   })
   
   rhbmanmon <- reactive({
-    
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- docs[docs$SetupMonth == input$Month4,]
     b <- a %>%
       group_by(SetupMonth, Office, Department, Manager) %>%
@@ -1408,7 +1568,7 @@ server <- function(input, output) {
   })
   
   rhbcolmon <- reactive({
-    
+    docs <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/docs.rds')
     a <- docs[docs$SetupMonth == input$Month4,]
     
     a <- plyr::rename(a,c("SetupMonth"="Setup Month",
@@ -1440,21 +1600,20 @@ server <- function(input, output) {
   })
   
   output$dt4 <- DT::renderDataTable({
-    table <- datatable(dt4(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    table <- datatable(dt4(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
                        options = list(
                          searching=TRUE,
                          autoWidth=TRUE,
-                         paging=FALSE,
-                         
-                         "sDom" = 'T<"clear">lfrtip',
-                         "oTableTools" = list(
-                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                           "aButtons" = list(
-                             "copy",
-                             "print",
-                             list("sExtends" = "collection",
-                                  "sButtonText" = "Save",
-                                  "aButtons" = c("csv","xls"))))))
+                         keys=TRUE,
+                         scroller=T,
+                         scrollY=450,
+                         rowReorder=T,
+                         colReorder = TRUE,
+                         paging=T,
+                         dom = 'Bfrtip',
+                         scrollX=T,
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+                       ))
     
     table <- formatPercentage(table,"Income Docs %",digits=2)
     
@@ -1477,6 +1636,7 @@ server <- function(input, output) {
   
   
   type1 <- reactive({
+    all <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/all.rds')
     a <- all[all$Office == input$office_day,]
     a <- plyr::rename(a,c("Income_Docs"="Income Docs Returned",
                           "Income_Doc_P"="Income Docs Returned %",
@@ -1488,6 +1648,7 @@ server <- function(input, output) {
     a
   })
   type2 <- reactive({
+    type <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/type.rds')
     a <- type[type$Office == input$office_day,]
     b <- a[a$ED_RHB_TYPE == input$progtype,]
     b <- plyr::rename(b,c("Income_Docs"="Income Docs Returned",
@@ -1500,6 +1661,7 @@ server <- function(input, output) {
     b
   })
   type3 <- reactive({
+    typeawg <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/typeawg.rds')
     a <- typeawg[typeawg$ED_RHB_TYPE==input$progtype,]
     a <- plyr::rename(a,c("Income_Docs"="Income Docs Returned",
                           "Income_Doc_P"="Income Docs Returned %",
@@ -1512,6 +1674,7 @@ server <- function(input, output) {
     a
   })
   type4 <- reactive({
+    allawg <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/allawg.rds')
     allawg <- plyr::rename(allawg,c("Income_Docs"="Income Docs Returned",
                                     "Income_Doc_P"="Income Docs Returned %",
                                     "RAL"="RALs Returned",
@@ -1536,21 +1699,20 @@ server <- function(input, output) {
   })
   
   output$ralsuc <- DT::renderDataTable({
-    table <- datatable(ralsuc(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    table <- datatable(ralsuc(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
                        options = list(
                          searching=TRUE,
                          autoWidth=TRUE,
-                         paging=FALSE,
-                         
-                         "sDom" = 'T<"clear">lfrtip',
-                         "oTableTools" = list(
-                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                           "aButtons" = list(
-                             "copy",
-                             "print",
-                             list("sExtends" = "collection",
-                                  "sButtonText" = "Save",
-                                  "aButtons" = c("csv","xls"))))))
+                         keys=TRUE,
+                         scroller=T,
+                         scrollY=450,
+                         rowReorder=T,
+                         colReorder = TRUE,
+                         paging=T,
+                         dom = 'Bfrtip',
+                         scrollX=T,
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+                       ))
     
     table <- formatPercentage(table,"Income Docs Returned %",digits=2)
     table <- formatPercentage(table,"RAL Percent",digits=2)
@@ -1590,6 +1752,7 @@ server <- function(input, output) {
   
   
   graph <- reactive({
+    hein <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/hein.rds')
     a <- hein[hein$Collector %in% input$COL,]
     a <- a[,names(a)%in% heiny()]
     a <- as.xts(a,order.by=a$Date)
@@ -1606,6 +1769,7 @@ server <- function(input, output) {
   ####Executive KPI Report####
   
   gentry_office <- reactive({
+  
     a <- tiff[tiff$Office %in% input$bgoff,]
     a <- a %>%
       group_by(Office,Month) %>%
@@ -1638,6 +1802,7 @@ server <- function(input, output) {
   })
   
   gentry_department <- reactive({
+   
     a <- tiff[tiff$Office %in% input$bgoff,]
     a <- a %>%
       group_by(Department,Office,Month) %>%
@@ -1671,6 +1836,7 @@ server <- function(input, output) {
   })
   
   gentry_manager <- reactive({
+   
     a <- tiff[tiff$Office %in% input$bgoff,]
     a <- a %>%
       group_by(Manager,Department,Office,Month) %>%
@@ -1716,21 +1882,20 @@ server <- function(input, output) {
   })
   
   output$exectable <- DT::renderDataTable({
-    table <- datatable(bgentry(),extensions = 'TableTools', rownames=FALSE,class = 'cell-border stripe',filter="top",
+    table <- datatable(bgentry(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
                        options = list(
                          searching=TRUE,
                          autoWidth=TRUE,
-                         paging=FALSE,
-                         
-                         "sDom" = 'T<"clear">lfrtip',
-                         "oTableTools" = list(
-                           "sSwfPath" = "//cdnjs.cloudflare.com/ajax/libs/datatables-tabletools/2.1.5/swf/copy_csv_xls.swf",
-                           "aButtons" = list(
-                             "copy",
-                             "print",
-                             list("sExtends" = "collection",
-                                  "sButtonText" = "Save",
-                                  "aButtons" = c("csv","xls")))))) %>%
+                         keys=TRUE,
+                         scroller=T,
+                         scrollY=450,
+                         rowReorder=T,
+                         colReorder = TRUE,
+                         paging=T,
+                         dom = 'Bfrtip',
+                         scrollX=T,
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+                       ))%>%
       
       formatStyle(
         'Contacts Per AR',
@@ -1843,6 +2008,463 @@ server <- function(input, output) {
   
   
   ############################
+  
+
+         
+  GAPMGRMON <- eventReactive(input$gapmon,
+{
+  MGR_GAP_MONTH <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/MGR_GAP_MONTH.rds')
+   a <- MGR_GAP_MONTH[MGR_GAP_MONTH$Month %in% input$gapmon,]
+   a
+   })
+
+GAPMGRDAY <- eventReactive(input$gapday,{
+  MGR_GAP_Day <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/MGR_GAP_Day.rds')
+  a <- MGR_GAP_Day[MGR_GAP_Day$Date == as.character(input$gapday),]
+  a
+})
+
+GAPEMPMON <- eventReactive(input$gapmon,
+{
+  EMP_GAP_MONTH <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/EMP_GAP_MONTH.rds')
+  a <- EMP_GAP_MONTH[EMP_GAP_MONTH$Month %in% input$gapmon,]
+  a
+})
+
+GAPEMPDAY <- eventReactive(input$gapday,{
+  EMP_GAP_Day <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/EMP_GAP_Day.rds')
+  a <- EMP_GAP_Day[EMP_GAP_Day$Date == as.character(input$gapday),]
+  a
+})
+
+
+
+
+
+gaptext <-reactive({
+  paste(input$gaptime,input$gapgroup)
+})
+
+gapDT <- reactive({
+  switch(gaptext(),
+         "Monthly Manager"= GAPMGRMON(),
+         "Daily Manager"= GAPMGRDAY(),
+         "Monthly Collector"=GAPEMPMON(),
+         "Daily Collector"=GAPEMPDAY()
+                          )
+  })
+   
+  output$gaptable <- renderDataTable({
+    
+    datatable(gapDT(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
+              options = list(
+                searching=TRUE,
+                autoWidth=TRUE,
+                keys=TRUE,
+                scroller=T,
+                scrollY=450,
+                rowReorder=T,
+                colReorder = TRUE,
+                paging=T,
+                dom = 'Bfrtip',
+                scrollX=T,
+                buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+              ))
+  })
+
+gapdwn <- reactive({
+  a <- gap[gap$DTE == as.character(input$gapday2),]
+  a
+  
+})
+
+output$gapdownloaddata <- downloadHandler(
+  filename = function() { 
+    paste("Daily_Call_Data", '.csv', sep='') 
+  },
+  content = function(file) {
+    write.csv(gapdwn(), file)
+  }
+)
+
+RES1 <- reactive({
+  res <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+  a <- res[res$Month %in% input$RESMONTH,]
+ a
+  })
+
+RES2 <- reactive({
+  res <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+  a <- res[res$Month %in% input$RESMONTH,]
+  a <- a %>%
+    group_by(Office, Department, Manager,Month) %>%
+    summarize(Good = sum(Good),
+              Bad = sum(Bad),
+              Death = sum(Death),
+              Incarceration = sum(Incarceration),
+              Disability = sum(Disability))
+  a
+})
+
+RES3 <- reactive({
+  res <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+  a <- res[res$Month %in% input$RESMONTH,]
+  a <- a %>%
+    group_by(Office, Department, Month) %>%
+    summarize(Good = sum(Good),
+              Bad = sum(Bad),
+              Death = sum(Death),
+              Incarceration = sum(Incarceration),
+              Disability = sum(Disability))
+  a
+})
+
+RES4 <- reactive({
+  res <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/res.rds')
+  a <- res[res$Month %in% input$RESMONTH,]
+  a <- a %>%
+    group_by(Office, Month) %>%
+    summarize(Good = sum(Good),
+              Bad = sum(Bad),
+              Death = sum(Death),
+              Incarceration = sum(Incarceration),
+              Disability = sum(Disability))
+  a
+})
+
+
+REStext <-reactive({
+  paste(input$RESGROUP)
+})
+
+RESDT <- reactive({
+  switch(REStext(),
+         "Office"= RES4(),
+         "Department"= RES3(),
+         "Manager"=RES2(),
+         "Collector"=RES1()
+  )
+})
+
+
+output$restable <- renderDataTable({
+  
+  datatable(RESDT(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
+            options = list(
+              searching=TRUE,
+              autoWidth=TRUE,
+              keys=TRUE,
+              scroller=T,
+              scrollY=450,
+              rowReorder=T,
+              colReorder = TRUE,
+              paging=T,
+              dom = 'Bfrtip',
+              scrollX=T,
+              buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+            ))
+})
+
+
+AWG1 <- reactive({
+  RGR <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+  a <- RGR[RGR$Month %in% input$AWGMONTH,]
+  
+  a <- a %>%
+    group_by(Office,Month) %>%
+    summarize(Good_RGR = n(),
+              Vendor_RGR = sum(Vendor.File. == "Yes"),
+              Non_Vendor_RGR = sum(Vendor.File. == "No"),
+              Activated_RGR = sum(ED_ACCT_ACT_DATE >= "2010-01-01"))
+a <- plyr::rename(a, c('Activated_RGR'='Activated RGRs' ,"Good_RGR"="Good RGR","Vendor_RGR"="Vendor RGR","Non_Vendor_RGR"="Non Vendor RGR"))
+  a
+})
+
+AWG2 <- reactive({
+  RGR <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+  a <- RGR[RGR$Month %in% input$AWGMONTH,]
+  
+  a <- a %>%
+    group_by(Office,Department,Month) %>%
+    summarize(Good_RGR = n(),
+              Vendor_RGR = sum(Vendor.File. == "Yes"),
+              Non_Vendor_RGR = sum(Vendor.File. == "No"),
+              Activated_RGR = sum(ED_ACCT_ACT_DATE >= "2010-01-01"))
+  a <- plyr::rename(a, c('Activated_RGR'='Activated RGRs',"Good_RGR"="Good RGR","Vendor_RGR"="Vendor RGR","Non_Vendor_RGR"="Non Vendor RGR"))
+  a
+})
+
+AWG3 <- reactive({
+  RGR <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+  a <- RGR[RGR$Month %in% input$AWGMONTH,]
+  
+  a <- a %>%
+    group_by(Office,Department, Manager, Month) %>%
+    summarize(Good_RGR = n(),
+              Vendor_RGR = sum(Vendor.File. == "Yes"),
+              Non_Vendor_RGR = sum(Vendor.File. == "No"),
+              Activated_RGR = sum(ED_ACCT_ACT_DATE >= "2010-01-01"))
+  a <- plyr::rename(a, c('Activated_RGR'='Activated RGRs',"Good_RGR"="Good RGR","Vendor_RGR"="Vendor RGR","Non_Vendor_RGR"="Non Vendor RGR"))
+  a
+})
+
+AWG4 <- reactive({
+  RGR <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+  a <- RGR[RGR$Month %in% input$AWGMONTH,]
+  
+  a <- a %>%
+    group_by(Office,Department,Manager,Collector,Month) %>%
+    summarize(Good_RGR = n(),
+              Vendor_RGR = sum(Vendor.File. == "Yes"),
+              Non_Vendor_RGR = sum(Vendor.File. == "No"),
+              Activated_RGR = sum(ED_ACCT_ACT_DATE >= "2010-01-01"))
+  a <- plyr::rename(a, c('Activated_RGR'='Activated RGRs',"Good_RGR"="Good RGR","Vendor_RGR"="Vendor RGR","Non_Vendor_RGR"="Non Vendor RGR"))
+  a
+})
+
+
+AWGtext <-reactive({
+  paste(input$AWGGROUP)
+})
+
+AWGDT <- reactive({
+  switch(AWGtext(),
+         "Office"= AWG1(),
+         "Department"= AWG2(),
+         "Manager"=AWG3(),
+         "Collector"=AWG4()
+  )
+})
+
+
+output$awgtable <- renderDataTable({
+  
+  datatable(AWGDT(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
+            options = list(
+              searching=TRUE,
+              autoWidth=TRUE,
+              keys=TRUE,
+              scroller=T,
+              scrollY=450,
+              rowReorder=T,
+              colReorder = TRUE,
+              paging=T,
+              dom = 'Bfrtip',
+              scrollX=T,
+              buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+            ))
+})
+
+
+
+BIFOff <- reactive({
+  BIFSIF <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+  a <- BIFSIF[BIFSIF$Month %in% input$BIFMONTH,]
+  a <- a %>%
+    group_by(Office,Month) %>%
+    summarize(BIFs = sum(Program == "BIF"),
+              SIFs = sum(Program == "SIF"),
+              Total = n())
+  a  
+})
+BIFDEPT <- reactive({
+  BIFSIF <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+  a <- BIFSIF[BIFSIF$Month %in% input$BIFMONTH,]
+  a <- a %>%
+    group_by(Office,Department, Month) %>%
+    summarize(BIFs = sum(Program == "BIF"),
+              SIFs = sum(Program == "SIF"),
+              Total = n())
+  a  
+})
+BIFMAN<- reactive({
+  BIFSIF <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+  a <- BIFSIF[BIFSIF$Month %in% input$BIFMONTH,]
+  a <- a %>%
+    group_by(Office,Department,Manager,Month) %>%
+    summarize(BIFs = sum(Program == "BIF"),
+              SIFs = sum(Program == "SIF"),
+              Total = n())
+  a  
+})
+BIFCOL<- reactive({
+  BIFSIF <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+  a <- BIFSIF[BIFSIF$Month %in% input$BIFMONTH,]
+  a <- a %>%
+    group_by(Office,Department,Manager,Collector,Month) %>%
+    summarize(BIFs = sum(Program == "BIF"),
+              SIFs = sum(Program == "SIF"),
+              Total = n())
+  a  
+})
+
+BIFtext <-reactive({
+  paste(input$BIFGROUP)
+})
+
+BIFDT <- reactive({
+  switch(BIFtext(),
+         "Office"= BIFOff(),
+         "Department"= BIFDEPT(),
+         "Manager"=BIFMAN(),
+         "Collector"=BIFCOL()
+  )
+})
+
+
+output$biftable <- renderDataTable({
+  
+  datatable(BIFDT(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
+            options = list(
+              searching=TRUE,
+              autoWidth=TRUE,
+              keys=TRUE,
+              scroller=T,
+              scrollY=450,
+              rowReorder=T,
+              colReorder = TRUE,
+              paging=T,
+              dom = 'Bfrtip',
+              scrollX=T,
+              buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+            ))
+})
+
+
+COMPOff <- reactive({
+  E <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/E.rds')
+  a <- E[E$Month %in% input$REFREPORTMONTH,]
+  a <- a %>%
+    group_by(Office,Month) %>%
+    summarize(Total_BIF_SIF = sum(Total_BIF_SIF),
+              Total_RGR = sum(Total_RGR),
+              Total_Res = sum(Total_Res),
+              Total = sum(Total))
+  
+  a$Office <- as.factor(a$Office)
+
+  a$Month <- as.factor(a$Month)
+  a <- plyr::rename(a,c("Total_BIF_SIF"="Total BIF & SIF","Total_RGR"="Total RGR","Total_Res"="Total Res","Total"="Total For Bonus"))
+  a  
+})
+COMPDEPT <- reactive({
+  E <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/E.rds')
+  a <- E[E$Month %in% input$REFREPORTMONTH,]
+  a <- a %>%
+    group_by(Office,Department,Month) %>%
+    summarize(Total_BIF_SIF = sum(Total_BIF_SIF),
+              Total_RGR = sum(Total_RGR),
+              Total_Res = sum(Total_Res),
+              Total = sum(Total))
+  a$Office <- as.factor(a$Office)
+  a$Department <- as.factor(a$Department)
+
+  a$Month <- as.factor(a$Month)
+  a <- plyr::rename(a,c("Total_BIF_SIF"="Total BIF & SIF","Total_RGR"="Total RGR","Total_Res"="Total Res","Total"="Total For Bonus"))
+  a  
+})
+COMPMAN<- reactive({
+  E <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/E.rds')
+  a <- E[E$Month %in% input$REFREPORTMONTH,]
+  a <- a %>%
+    group_by(Office,Department, Manager,Month) %>%
+    summarize(Total_BIF_SIF = sum(Total_BIF_SIF),
+              Total_RGR = sum(Total_RGR),
+              Total_Res = sum(Total_Res),
+              Total = sum(Total))
+  a$Office <- as.factor(a$Office)
+  a$Department <- as.factor(a$Department)
+  a$Manager <- as.factor(a$Manager)
+  a$Month <- as.factor(a$Month)
+  
+  a <- plyr::rename(a,c("Total_BIF_SIF"="Total BIF & SIF","Total_RGR"="Total RGR","Total_Res"="Total Res","Total"="Total For Bonus"))
+  a  
+})
+COMPCOL<- reactive({
+  E <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/E.rds')
+  a <- E[E$Month %in% input$REFREPORTMONTH,]
+  a$Office <- as.factor(a$Office)
+  a$Department <- as.factor(a$Department)
+  a$Manager <- as.factor(a$Manager)
+  a$Collector <- as.factor(a$Collector)
+  a$Month <- as.factor(a$Month)
+  a <- plyr::rename(a,c("Total_BIF_SIF"="Total BIF & SIF","Total_RGR"="Total RGR","Total_Res"="Total Res","Total"="Total For Bonus"))
+  a  
+})
+
+COMPtext <-reactive({
+  paste(input$REFREPORTGROUP)
+})
+
+COMPDT <- reactive({
+  switch(COMPtext(),
+         "Office"= COMPOff(),
+         "Department"= COMPDEPT(),
+         "Manager"=COMPMAN(),
+         "Collector"=COMPCOL()
+  )
+})
+
+
+output$comptable <- renderDataTable({
+  
+  datatable(COMPDT(),extensions = c('FixedColumns','Buttons','ColReorder','KeyTable','RowReorder','Scroller'), rownames=FALSE,class = 'cell-border stripe',filter="top",
+            options = list(
+              searching=TRUE,
+              autoWidth=TRUE,
+              keys=TRUE,
+              scroller=T,
+              scrollY=450,
+              rowReorder=T,
+              colReorder = TRUE,
+              paging=T,
+              dom = 'Bfrtip',
+              scrollX=T,
+              buttons = c('copy', 'csv', 'excel', 'pdf', 'print',I('colvis'))
+            ))
+})
+
+
+RESDWN <- reactive({
+  RESDATA <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RESDATA.rds')
+  a <- RESDATA[RESDATA$Month %in% input$DATADWNMONTH,]
+  a  
+})
+BIFDWN <- reactive({
+  BIFSIF <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/BIFSIF.rds')
+  a <- BIFSIF[BIFSIF$Month %in% input$DATADWNMONTH,]
+  a
+})
+RGRDWN <- reactive({
+  RGR <- readRDS('//KNX3IT/AWG Management/KPI Data/Input/RGR.rds')
+  a <- RGR[RGR$Month %in% input$DATADWNMONTH,]
+  a
+})
+
+DOWNtext <-reactive({
+  paste(input$DATASRC)
+})
+
+DOWNDT <- reactive({
+  switch(DOWNtext(),
+         "Res Report"= RESDWN(),
+         "RGR Report"= RGRDWN(),
+         "BIF/SIF Tracker"=BIFDWN()
+  )
+})
+
+
+output$REFDWN <- downloadHandler(
+  filename = function() { 
+    paste("Referral Report", '.csv', sep='') 
+  },
+  content = function(file) {
+    write.csv(DOWNDT(), file)
+  }
+)
+
+
+
   
 }
 shinyApp(ui, server)
